@@ -6,6 +6,7 @@ import ProgressShowcase from '../components/dashboard/ProgressShowcase';
 // import Testimonials from '../components/dashboard/Testimonials';
 import CTA from '../components/dashboard/CTA';
 import Contributing from '../components/dashboard/Contributing';
+import Support from '../components/dashboard/Support';
 import Footer from '../components/dashboard/Footer';
 import LandingNav from '../components/dashboard/LandingNav';
 import AuthModal from '../components/auth/AuthModal';
@@ -46,6 +47,7 @@ const DashBoard = ({ isLoggedIn, onAuthSuccess }) => {
         <CTA isLoggedIn={isLoggedIn} onGetStartedClick={() => handleOpenAuthModal('signup')} />
       </div>
       <Contributing />
+      <Support />
       <Footer />
 
       <AuthModal
