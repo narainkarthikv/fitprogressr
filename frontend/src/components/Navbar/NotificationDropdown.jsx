@@ -72,6 +72,7 @@ const NotificationDropdown = ({ notifications = [], toggleNotificationReadStatus
   return (
     <>
       <IconButton
+        aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'}
         onClick={handleClick}
         size="small"
         sx={{
@@ -186,6 +187,7 @@ const NotificationDropdown = ({ notifications = [], toggleNotificationReadStatus
                     <FaEnvelope fontSize="small" />
                   )}
                   <IconButton
+                    aria-label={`Delete notification: ${notification.message}`}
                     size="small"
                     onClick={() => deleteNotification(notification.id)}
                     sx={{

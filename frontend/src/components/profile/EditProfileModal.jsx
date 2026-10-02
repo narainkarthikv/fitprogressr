@@ -11,6 +11,7 @@ import {
   IconButton,
   Stack,
   Alert,
+  Skeleton,
   useTheme,
   alpha,
   Avatar,
@@ -25,6 +26,8 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import Snackbar from '../common/Snackbar';
+import { API_BASE_URL, getAccessToken } from '../../utils/api';
+import { validateEmail, validateStrongPassword, validateUsername } from '../../utils/validation';
 
 const EditProfileModal = ({
   open,
@@ -32,6 +35,7 @@ const EditProfileModal = ({
   userId,
   currentUsername,
   currentEmail,
+  profileLoading = false,
   onProfileUpdated,
 }) => {
   const theme = useTheme();
@@ -54,7 +58,7 @@ const EditProfileModal = ({
     confirmPassword: '',
   });
 
-  const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const backendURL = API_BASE_URL;
 
   // Initialize form with current user data
   useEffect(() => {
@@ -78,13 +82,13 @@ const EditProfileModal = ({
     setError('');
 
     // Validation
-    if (!formData.username.trim()) {
-      setError('Username is required');
+    if (!validateUsername(formData.username)) {
+      setError('Username must be 3 to 40 characters and cannot contain markup characters.');
       return;
     }
 
-    if (!formData.email.trim()) {
-      setError('Email is required');
+    if (!validateEmail(formData.email)) {
+      setError('Enter a valid email address.');
       return;
     }
 
@@ -95,8 +99,8 @@ const EditProfileModal = ({
         return;
       }
 
-      if (formData.newPassword.length < 6) {
-        setError('New password must be at least 6 characters');
+      if (!validateStrongPassword(formData.newPassword)) {
+        setError('New password must be at least 8 characters and include uppercase, lowercase, number, and special character.');
         return;
       }
 
@@ -109,7 +113,7 @@ const EditProfileModal = ({
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const accessToken = getAccessToken();
 
       const updateData = {
         username: formData.username,
@@ -126,7 +130,7 @@ const EditProfileModal = ({
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(updateData),
       });
@@ -134,7 +138,7 @@ const EditProfileModal = ({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to update profile');
+        throw new Error(data.error || data.message || 'Failed to update profile');
       }
 
       setSnackbar({
@@ -203,6 +207,7 @@ const EditProfileModal = ({
         }}
       >
         <IconButton
+          aria-label="Close profile editor"
           onClick={handleClose}
           sx={{
             position: 'absolute',
@@ -231,17 +236,21 @@ const EditProfileModal = ({
                   mb: 2,
                 }}
               >
-                <Avatar
-                  sx={{
-                    width: 64,
-                    height: 64,
-                    backgroundColor: 'primary.main',
-                    fontSize: '2rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  {currentUsername?.charAt(0).toUpperCase() || 'U'}
-                </Avatar>
+                {profileLoading ? (
+                  <Skeleton variant="circular" width={64} height={64} />
+                ) : (
+                  <Avatar
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      backgroundColor: 'primary.main',
+                      fontSize: '2rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {currentUsername?.charAt(0).toUpperCase() || 'U'}
+                  </Avatar>
+                )}
               </Box>
               <Typography
                 variant="h5"
@@ -270,17 +279,19 @@ const EditProfileModal = ({
 
             <Box component="form" onSubmit={handleSubmit}>
               <Stack spacing={3}>
+                {profileLoading ? (
+                  <Stack spacing={3} aria-label="Loading profile details">
+                    <Skeleton variant="rounded" height={56} />
+                    <Skeleton variant="rounded" height={56} />
+                  </Stack>
+                ) : (
+                  <>
                 {/* Username */}
                 <Box>
-                  <Typography
-                    variant="body2"
-                    sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}
-                  >
-                    Username
-                  </Typography>
                   <TextField
                     fullWidth
                     name="username"
+                    label="Username"
                     placeholder="Enter username"
                     value={formData.username}
                     onChange={handleInputChange}
@@ -297,15 +308,10 @@ const EditProfileModal = ({
 
                 {/* Email */}
                 <Box>
-                  <Typography
-                    variant="body2"
-                    sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}
-                  >
-                    Email
-                  </Typography>
                   <TextField
                     fullWidth
                     type="email"
+                    label="Email address"
                     name="email"
                     placeholder="Enter email"
                     value={formData.email}
@@ -320,6 +326,8 @@ const EditProfileModal = ({
                     }}
                   />
                 </Box>
+                  </>
+                )}
 
                 <Divider sx={{ my: 1 }}>
                   <Typography variant="caption" sx={{ color: 'text.secondary', px: 2 }}>
@@ -338,6 +346,7 @@ const EditProfileModal = ({
                   <TextField
                     fullWidth
                     type={showCurrentPassword ? 'text' : 'password'}
+                    label="Current password"
                     name="currentPassword"
                     placeholder="Enter current password"
                     value={formData.currentPassword}
@@ -351,6 +360,7 @@ const EditProfileModal = ({
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
+                            aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
                             onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                             edge="end"
                             size="small"
@@ -374,6 +384,7 @@ const EditProfileModal = ({
                   <TextField
                     fullWidth
                     type={showNewPassword ? 'text' : 'password'}
+                    label="New password"
                     name="newPassword"
                     placeholder="Enter new password"
                     value={formData.newPassword}
@@ -387,6 +398,7 @@ const EditProfileModal = ({
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
+                            aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
                             onClick={() => setShowNewPassword(!showNewPassword)}
                             edge="end"
                             size="small"
@@ -410,6 +422,7 @@ const EditProfileModal = ({
                   <TextField
                     fullWidth
                     type={showConfirmPassword ? 'text' : 'password'}
+                    label="Confirm new password"
                     name="confirmPassword"
                     placeholder="Confirm new password"
                     value={formData.confirmPassword}
@@ -423,6 +436,7 @@ const EditProfileModal = ({
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton
+                            aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                             edge="end"
                             size="small"
@@ -442,7 +456,7 @@ const EditProfileModal = ({
                   variant="outlined"
                   fullWidth
                   size="large"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || profileLoading}
                   sx={{
                     py: 1.5,
                     textTransform: 'none',
@@ -456,7 +470,7 @@ const EditProfileModal = ({
                   variant="contained"
                   fullWidth
                   size="large"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || profileLoading}
                   sx={{
                     py: 1.5,
                     textTransform: 'none',
@@ -487,6 +501,7 @@ EditProfileModal.propTypes = {
   userId: PropTypes.string.isRequired,
   currentUsername: PropTypes.string,
   currentEmail: PropTypes.string,
+  profileLoading: PropTypes.bool,
   onProfileUpdated: PropTypes.func,
 };
 

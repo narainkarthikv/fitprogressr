@@ -35,7 +35,8 @@ import Lottie from 'react-lottie';
 import loginAnimation from '../../assets/lottie/login-lottie.json';
 import signupAnimation from '../../assets/lottie/signup-lottie.json';
 import Snackbar from '../common/Snackbar';
-import { setAccessToken, setRefreshToken } from '../../utils/api';
+import { API_BASE_URL, setAccessToken, setRefreshToken } from '../../utils/api';
+import { validateEmail, validateUsername } from '../../utils/validation';
 
 const passwordChecks = [
   {
@@ -130,7 +131,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("Let's Get Started!");
 
-  const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const backendURL = API_BASE_URL;
   const passwordStrength = useMemo(
     () => calculatePasswordStrength(signupForm.password),
     [signupForm.password]
@@ -161,8 +162,8 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
   const canSubmitSignup =
     passwordStrength.meetsBaseline &&
     !passwordsMismatch &&
-    signupForm.username &&
-    signupForm.email &&
+    validateUsername(signupForm.username) &&
+    validateEmail(signupForm.email) &&
     signupForm.password &&
     signupForm.confirmpassword;
   const canSubmitLogin = loginCredentials.email && loginCredentials.password;
@@ -239,8 +240,9 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
         throw new Error(data.message || data.error || 'Login failed');
       }
 
-      if (data.token) {
-        setAccessToken(data.token);
+      const accessToken = data.accessToken;
+      if (accessToken) {
+        setAccessToken(accessToken);
       }
 
       if (data.refreshToken) {
@@ -287,6 +289,15 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
       return;
     }
 
+    if (!validateUsername(signupForm.username)) {
+      setError('Username must be 3 to 40 characters and cannot contain markup characters.');
+      return;
+    }
+    if (!validateEmail(signupForm.email)) {
+      setError('Enter a valid email address.');
+      return;
+    }
+
     if (!passwordStrength.meetsBaseline) {
       const strengthError =
         'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.';
@@ -314,7 +325,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to sign up');
+        throw new Error(data.error || data.message || 'Failed to sign up');
       }
 
       setSnackbar({
@@ -508,6 +519,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
               }}
             >
               <IconButton
+                aria-label="Close authentication dialog"
                 onClick={onClose}
                 sx={{
                   position: 'absolute',
@@ -581,6 +593,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                           <TextField
                             fullWidth
                             type="email"
+                            label="Email address"
                             name="email"
                             placeholder="Enter your email"
                             value={loginCredentials.email}
@@ -600,6 +613,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                           <TextField
                             fullWidth
                             type={showPassword ? 'text' : 'password'}
+                            label="Password"
                             name="password"
                             placeholder="Enter your password"
                             value={loginCredentials.password}
@@ -614,6 +628,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                               endAdornment: (
                                 <InputAdornment position="end">
                                   <IconButton
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                                     onClick={() => setShowPassword(!showPassword)}
                                     edge="end"
                                     size="small"
@@ -690,6 +705,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                           <TextField
                             fullWidth
                             name="username"
+                            label="Username"
                             placeholder="Choose a username"
                             value={signupForm.username}
                             onChange={handleSignupInputChange}
@@ -708,6 +724,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                           <TextField
                             fullWidth
                             type="email"
+                            label="Email address"
                             name="email"
                             placeholder="Enter your email"
                             value={signupForm.email}
@@ -727,6 +744,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                           <TextField
                             fullWidth
                             type={showPassword ? 'text' : 'password'}
+                            label="Password"
                             name="password"
                             placeholder="Create a password"
                             value={signupForm.password}
@@ -741,6 +759,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                               endAdornment: (
                                 <InputAdornment position="end">
                                   <IconButton
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                                     onClick={() => setShowPassword(!showPassword)}
                                     edge="end"
                                     size="small"
@@ -818,6 +837,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                           <TextField
                             fullWidth
                             type={showConfirmPassword ? 'text' : 'password'}
+                            label="Confirm password"
                             name="confirmpassword"
                             placeholder="Confirm your password"
                             value={signupForm.confirmpassword}
@@ -847,6 +867,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                               endAdornment: (
                                 <InputAdornment position="end">
                                   <IconButton
+                                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                     edge="end"
                                     size="small"

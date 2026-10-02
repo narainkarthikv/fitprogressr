@@ -1,24 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Box, Typography, Fade, Button } from '@mui/material';
-import { Add, Close } from '@mui/icons-material';
-import { fetchExercises, addExercise, deleteExercise } from '../slices/exercisesSlice';
+import { Add } from '@mui/icons-material';
+import { fetchExercises, deleteExercise } from '../slices/exercisesSlice';
 import ExerciseTable from './Exercise/ExerciseTable';
-import ExerciseForm from './Exercise/ExerciseForm';
 
-const ExercisesList = ({ userID, title = "Today's Exercises" }) => {
+const ExercisesList = ({ userID, title = "Today's Exercises", onAddExercise }) => {
   const dispatch = useDispatch();
   const userExercises = useSelector((state) => state.exercises.userExercises);
   const status = useSelector((state) => state.exercises.status);
 
   const exercises = useMemo(() => userExercises?.[userID] || [], [userExercises, userID]);
-  const [formVisible, setFormVisible] = useState(false);
-  const [newExerciseData, setNewExerciseData] = useState({
-    description: '',
-    duration: 0,
-    exerciseCheck: false,
-  });
-
+  const hasFetchedExercises = Array.isArray(userExercises?.[userID]);
+  const isLoading = !hasFetchedExercises && (status === 'idle' || status === 'loading');
   useEffect(() => {
     if (status === 'idle') {
       dispatch(fetchExercises(userID));
@@ -32,24 +26,6 @@ const ExercisesList = ({ userID, title = "Today's Exercises" }) => {
 
   const handleDelete = (exerciseId) => {
     dispatch(deleteExercise(userID, exerciseId));
-  };
-
-  const handleAdd = (e) => {
-    e.preventDefault();
-    dispatch(addExercise(userID, newExerciseData)).then(() => {
-      // Optionally fetch exercises again to ensure the state is updated
-      dispatch(fetchExercises(userID));
-    });
-    setFormVisible(false);
-    setNewExerciseData({ description: '', duration: 0, exerciseCheck: false });
-  };
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setNewExerciseData({
-      ...newExerciseData,
-      [name]: type === 'checkbox' ? checked : value,
-    });
   };
 
   return (
@@ -68,31 +44,20 @@ const ExercisesList = ({ userID, title = "Today's Exercises" }) => {
           {title}
         </Typography>
         <Button
-          variant={formVisible ? 'outlined' : 'contained'}
-          startIcon={formVisible ? <Close /> : <Add />}
-          onClick={() => setFormVisible((prev) => !prev)}
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => onAddExercise('exercise')}
           sx={{
             borderRadius: 8,
             fontWeight: 600,
-            ...(formVisible
-              ? {
-                  borderColor: 'divider',
-                  color: 'text.primary',
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    backgroundColor: 'action.hover',
-                  },
-                }
-              : {
-                  backgroundColor: 'primary.main',
-                  color: 'text.inverse',
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                  },
-                  '&:active': {
-                    backgroundColor: 'primary.dark',
-                  },
-                }),
+            backgroundColor: 'primary.main',
+            color: 'text.inverse',
+            '&:hover': {
+              backgroundColor: 'primary.dark',
+            },
+            '&:active': {
+              backgroundColor: 'primary.dark',
+            },
             '&:focus-visible': {
               outline: '2px solid',
               outlineColor: 'primary.light',
@@ -100,15 +65,15 @@ const ExercisesList = ({ userID, title = "Today's Exercises" }) => {
             },
           }}
         >
-          {formVisible ? 'Close' : 'Add Exercise'}
+          Add Exercise
         </Button>
       </Box>
 
       <Box
         sx={{
           flexGrow: 1,
-          minHeight: '380px',
-          maxHeight: '380px',
+          minHeight: { xs: '240px', md: 0 },
+          maxHeight: { xs: '380px', md: 'none' },
           overflowY: 'auto',
           '&::-webkit-scrollbar': {
             width: '8px',
@@ -126,33 +91,22 @@ const ExercisesList = ({ userID, title = "Today's Exercises" }) => {
           },
         }}
       >
-        {status === 'loading' && (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography color="text.secondary">Loading exercises...</Typography>
-          </Box>
-        )}
-        {status === 'failed' && (
+        {isLoading ? (
+          <ExerciseTable loading />
+        ) : status === 'failed' && !hasFetchedExercises ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography color="error.main">Error fetching exercises.</Typography>
           </Box>
-        )}
-        <Fade in={status === 'succeeded'} timeout={500}>
+        ) : (
+          <Fade in timeout={500}>
           <Box>
             <ExerciseTable
               exercises={exercises}
               handleDelete={handleDelete}
-              formVisible={formVisible}
-              formComponent={
-                <ExerciseForm
-                  newExerciseData={newExerciseData}
-                  handleChange={handleChange}
-                  handleAdd={handleAdd}
-                  setFormVisible={setFormVisible}
-                />
-              }
             />
           </Box>
-        </Fade>
+          </Fade>
+        )}
       </Box>
     </Box>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { updateTotalDays } from '../slices/userRoutineSlice';
-import { Box, Typography, Chip } from '@mui/material';
+import { Box, Typography, Chip, Skeleton } from '@mui/material';
 import {
   Whatshot as FireIcon,
   CheckCircle as CheckCircleIcon,
@@ -8,13 +8,15 @@ import {
 } from '@mui/icons-material';
 import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
+import { API_BASE_URL, getAccessToken } from '../utils/api';
 
-const UserRoutine = ({ userID }) => {
+const UserRoutine = ({ userID, compact = false }) => {
   const [dayCheck, setDayCheck] = useState([false, false, false, false, false, false, false]);
   const [streak, setStreak] = useState(0);
   const [weeklyStreakValue, setWeeklyStreakValue] = useState(0);
   const [msg, setMsg] = useState('');
-  const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const [loading, setLoading] = useState(true);
+  const backendURL = API_BASE_URL;
 
   const dispatch = useDispatch();
   const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -33,89 +35,127 @@ const UserRoutine = ({ userID }) => {
   };
 
   useEffect(() => {
-    if (!userID) return;
+    let isCurrent = true;
+    if (!userID) {
+      setLoading(false);
+      return () => {
+        isCurrent = false;
+      };
+    }
+
+    setLoading(true);
 
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const accessToken = getAccessToken();
         const res = await fetch(`${backendURL}/api/user/streak/${userID}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         });
 
+        if (!res.ok) throw new Error('Unable to fetch workout streak');
         const data = await res.json();
+        if (!isCurrent) return;
         setStreak(data.streakCount);
         setDayCheck(data.dayCheck);
         weeklyStreak(data.dayCheck);
         dispatch(updateTotalDays(userID, data.dayCheck));
       } catch (error) {
         console.error('Fetch error:', error);
+      } finally {
+        if (isCurrent) setLoading(false);
       }
     };
 
     fetchData();
+
+    return () => {
+      isCurrent = false;
+    };
   }, [userID, backendURL, dispatch]);
 
   const today = new Date().getDay();
+
+  if (loading) {
+    return (
+      <Box
+        role="status"
+        aria-label="Loading weekly streak"
+        sx={{ display: 'flex', flexDirection: 'column', gap: compact ? 0.75 : 2 }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: compact ? 'flex-start' : 'center', gap: 1 }}>
+          <Skeleton variant="circular" width={compact ? 26 : 40} height={compact ? 26 : 40} />
+          <Skeleton variant="text" width={compact ? 34 : 68} height={compact ? 34 : 64} />
+          <Skeleton variant="text" width={compact ? 74 : 110} height={24} />
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: compact ? 'center' : 'space-between', gap: compact ? 0.3 : 0 }}>
+          {weekdays.map((day) => (
+            <Box key={day} sx={{ width: compact ? 24 : 38, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+              <Skeleton variant="text" width={20} height={18} />
+              <Skeleton variant="circular" width={compact ? 14 : 20} height={compact ? 14 : 20} />
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        gap: 2.5,
+        alignItems: 'stretch',
+        height: compact ? 'auto' : { xs: '100%', lg: 'auto' },
+        flex: compact ? '0 0 auto' : { lg: 1 },
+        minHeight: compact ? 'auto' : { lg: 0 },
+        gap: compact ? 0.75 : { xs: 2.5, lg: 1.25 },
+        width: compact ? { xs: '100%', sm: 'auto' } : 'auto',
+        flexShrink: compact ? 0 : 1,
       }}
     >
       {/* Streak Card */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #FFC837 0%, #FF8008 100%)',
-          borderRadius: '16px',
-          p: 3,
-          textAlign: 'center',
-          boxShadow: '0 8px 24px rgba(255, 200, 55, 0.25)',
+          background: compact ? 'transparent' : 'linear-gradient(135deg, rgba(109, 140, 255, 0.16), rgba(109, 140, 255, 0.04))',
+          border: compact ? 'none' : '1px solid rgba(109, 140, 255, 0.18)',
+          borderRadius: compact ? 0 : '16px',
+          p: compact ? 0 : { xs: 3, lg: 2 },
+          textAlign: compact ? 'left' : 'center',
           position: 'relative',
           overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background:
-              'radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.2) 0%, transparent 50%)',
-          },
+          display: compact ? 'flex' : 'block',
+          alignItems: 'center',
+          gap: compact ? 0.5 : 0,
+          width: compact ? 'fit-content' : 'auto',
         }}
       >
         <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: 1,
-            mb: 0.5,
+            gap: compact ? 0.5 : 1,
+            mb: compact ? 0 : 0.5,
             position: 'relative',
+            justifyContent: compact ? 'flex-start' : 'center',
           }}
         >
           <FireIcon
             sx={{
-              fontSize: 36,
-              color: '#dc3545',
-              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+              fontSize: compact ? 26 : 36,
+              color: '#F4A340',
             }}
           />
           <Typography
             sx={{
-              fontSize: '3rem',
+              fontSize: compact ? '1.55rem' : { xs: '3rem', lg: '2.2rem' },
               fontWeight: 900,
-              color: '#1a1a1a',
+              color: 'text.primary',
               lineHeight: 1,
-              textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              textShadow: 'none',
             }}
           >
             {streak}
@@ -123,11 +163,12 @@ const UserRoutine = ({ userID }) => {
         </Box>
         <Typography
           sx={{
-            fontSize: '1rem',
+            fontSize: compact ? '0.72rem' : '1rem',
             fontWeight: 700,
-            color: '#1a1a1a',
+            color: 'text.secondary',
             textTransform: 'uppercase',
-            letterSpacing: '1px',
+            letterSpacing: compact ? '0.04em' : '1px',
+            whiteSpace: compact ? 'nowrap' : 'normal',
           }}
         >
           day streak!
@@ -144,7 +185,8 @@ const UserRoutine = ({ userID }) => {
             fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
-            mb: 1.5,
+            display: compact ? 'none' : 'block',
+            mb: { xs: 1.5, lg: 0.75 },
           }}
         >
           This Week
@@ -154,8 +196,9 @@ const UserRoutine = ({ userID }) => {
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
-            mb: 2,
+            justifyContent: compact ? 'center' : 'space-between',
+            gap: compact ? 0.3 : 0,
+            mb: compact ? 0 : { xs: 2, lg: 1 },
           }}
         >
           {weekdays.map((day, index) => (
@@ -165,13 +208,14 @@ const UserRoutine = ({ userID }) => {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 1,
-                width: '38px',
+                gap: compact ? 0.25 : 1,
+                width: compact ? '24px' : '38px',
               }}
             >
               <Typography
                 sx={{
-                  fontSize: '0.85rem',
+                  display: 'block',
+            fontSize: compact ? '0.72rem' : '0.85rem',
                   fontWeight: index === today ? 700 : 500,
                   color: index === today ? 'primary.main' : 'text.secondary',
                   transition: 'all 0.2s ease',
@@ -182,16 +226,16 @@ const UserRoutine = ({ userID }) => {
               {dayCheck[index] ? (
                 <CheckCircleIcon
                   sx={{
-                    color: '#FFC837',
-                    fontSize: 20,
+                    color: 'primary.main',
+                    fontSize: compact ? 17 : 20,
                     filter: 'drop-shadow(0 2px 4px rgba(255, 200, 55, 0.4))',
                   }}
                 />
               ) : (
                 <Box
                   sx={{
-                    width: 20,
-                    height: 20,
+                    width: compact ? 14 : 20,
+                    height: compact ? 14 : 20,
                     borderRadius: '50%',
                     border: '2px solid',
                     borderColor: 'rgba(255, 255, 255, 0.1)',
@@ -205,18 +249,19 @@ const UserRoutine = ({ userID }) => {
         {/* Progress Bar */}
         <Box
           sx={{
+            display: compact ? 'none' : 'block',
             height: '6px',
             backgroundColor: 'rgba(255, 255, 255, 0.08)',
             borderRadius: '3px',
             overflow: 'hidden',
-            mb: 2,
+            mb: { xs: 2, lg: 1 },
           }}
         >
           <Box
             sx={{
               height: '100%',
               width: `${(weeklyStreakValue / 6) * 100}%`,
-              background: 'linear-gradient(90deg, #FFC837 0%, #FF8008 100%)',
+            backgroundColor: 'primary.main',
               transition: 'width 0.5s ease-in-out',
               borderRadius: '3px',
             }}
@@ -224,7 +269,7 @@ const UserRoutine = ({ userID }) => {
         </Box>
 
         {/* Status Message */}
-        {msg && (
+        {!compact && msg && (
           <Chip
             icon={<SentimentDissatisfied sx={{ fontSize: 16 }} />}
             label={msg}
@@ -251,6 +296,7 @@ const UserRoutine = ({ userID }) => {
 
 UserRoutine.propTypes = {
   userID: PropTypes.string.isRequired,
+  compact: PropTypes.bool,
 };
 
 export default UserRoutine;

@@ -11,7 +11,7 @@ const Quotes = ({ quote }) => {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 2,
+          gap: { xs: 2, lg: 0.75 },
           height: '100%',
           justifyContent: 'center',
           width: '100%',
@@ -32,7 +32,7 @@ const Quotes = ({ quote }) => {
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 2,
+        gap: { xs: 2, lg: 0.75 },
         height: '100%',
         justifyContent: 'center',
         position: 'relative',
@@ -69,13 +69,13 @@ const Quotes = ({ quote }) => {
       {/* Quote Text */}
       <Typography
         sx={{
-          fontSize: { xs: '0.95rem', md: '1.05rem' },
-          lineHeight: 1.7,
+          fontSize: { xs: '0.95rem', md: '1.05rem', lg: '0.9rem' },
+          lineHeight: { xs: 1.7, lg: 1.45 },
           color: 'text.primary',
           fontWeight: 500,
           position: 'relative',
           zIndex: 1,
-          mb: 1,
+          mb: { xs: 1, lg: 0 },
         }}
       >
         "{text}"
@@ -109,7 +109,11 @@ const Quotes = ({ quote }) => {
             variant="caption"
             sx={{
               color: 'text.secondary',
-              fontSize: '0.75rem',
+              fontSize: { xs: '0.75rem', lg: '0.68rem' },
+              display: { lg: '-webkit-box' },
+              WebkitLineClamp: { lg: 1 },
+              WebkitBoxOrient: { lg: 'vertical' },
+              overflow: { lg: 'hidden' },
               fontStyle: 'italic',
               ml: 1.5,
             }}

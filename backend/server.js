@@ -1,10 +1,18 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const { validateApiResponse } = require('./utils/responseSchemas');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 5000;
+if (process.env.TRUST_PROXY_HOPS) {
+  const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS);
+  if (!Number.isInteger(trustProxyHops) || trustProxyHops < 1) {
+    throw new Error('TRUST_PROXY_HOPS must be a positive integer');
+  }
+  app.set('trust proxy', trustProxyHops);
+}
 
 // CORS Configuration - Production Ready
 const corsOptions = {
@@ -84,11 +92,46 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// Validate successful API payloads against their endpoint response contracts.
+app.use((req, res, next) => {
+  const sendJson = res.json.bind(res);
+  res.json = (body) => {
+    const isValid = validateApiResponse({
+      method: req.method,
+      routePath: req.route?.path,
+      baseUrl: req.baseUrl || '',
+      statusCode: res.statusCode,
+      body,
+    });
+    if (!isValid) {
+      console.error(JSON.stringify({
+        level: 'error',
+        timestamp: new Date().toISOString(),
+        message: 'API response did not match its schema',
+        method: req.method,
+        path: req.path,
+      }));
+      res.statusCode = 500;
+      return sendJson({ error: 'Internal server error' });
+    }
+    return sendJson(body);
+  };
+  next();
+});
+
 // Request logging middleware for debugging
 app.use((req, res, next) => {
-  console.log(
-    `[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.get('origin')}`
-  );
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    console.log(JSON.stringify({
+      level: 'info',
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      durationMs: Date.now() - startedAt,
+    }));
+  });
   next();
 });
 
@@ -145,10 +188,10 @@ app.use('/api/health', healthRouter);
 
 // Global error handler (must be before 404 handler)
 app.use((err, req, res, next) => {
-  console.error('🔴 Request Error:', err.message);
-  console.error(err.stack);
+  console.error(JSON.stringify({ level: 'error', timestamp: new Date().toISOString(), message: err.message, path: req.path }));
+  if (res.headersSent) return next(err);
   res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
+    error: err.status && err.status < 500 ? 'Invalid request' : 'Internal server error',
     timestamp: new Date().toISOString(),
   });
 });

@@ -1,8 +1,8 @@
 import { createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { getAuthConfig } from '../utils/api';
+import { API_BASE_URL, getAuthConfig } from '../utils/api';
 
-const backendURL = import.meta.env.VITE_API_URL;
+const backendURL = API_BASE_URL;
 
 const initialState = {
   userMonthData: {},
@@ -76,9 +76,11 @@ export const addExercise = (userID, newExerciseData) => async (dispatch) => {
     // Dispatch success with updated month data
     dispatch(addExerciseSuccess({ userID, data: updatedMonthResponse.data }));
     dispatch(setStatus('succeeded'));
+    return true;
   } catch (error) {
     dispatch(addExerciseFailure(error.toString()));
     dispatch(setStatus('failed'));
+    return false;
   }
 };
 

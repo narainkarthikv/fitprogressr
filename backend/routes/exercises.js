@@ -8,9 +8,10 @@ const {
   normalizeDayKey,
   toObjectId,
   buildUserIdFilter,
-  validateExercisePayload,
 } = require('../utils/helpers');
-const { validateMonth } = require('../utils/validators');
+const { validateExercisePayload, validateMonth } = require('../utils/validators');
+const { getApiErrorResponse } = require('../utils/apiErrors');
+const { sanitizePlainText } = require('../utils/sanitize');
 
 router.get('/', verifyToken, ensureAdmin, async (req, res) => {
   try {
@@ -21,7 +22,8 @@ router.get('/', verifyToken, ensureAdmin, async (req, res) => {
     return res.json(ExerciseData);
   } catch (error) {
     console.error('Error fetching exercise data:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    const apiError = getApiErrorResponse(error);
+    return res.status(apiError.status).json(apiError.body);
   }
 });
 
@@ -35,32 +37,39 @@ router.get('/:userId/exercises_list', verifyToken, ensureSelf('userId'), async (
     return res.json(exerciseData);
   } catch (error) {
     console.error('Error fetching exercise data:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    const apiError = getApiErrorResponse(error);
+    return res.status(apiError.status).json(apiError.body);
   }
 });
 
 router.post('/:userId/add', verifyToken, ensureSelf('userId'), async (req, res) => {
   const { userId } = req.params;
-  const { description, duration, exerciseCheck } = req.body;
+  const { description, duration, exerciseCheck } = req.body || {};
 
   try {
+    if (typeof duration !== 'number' && !(typeof duration === 'string' && duration.trim() !== '')) {
+      return res.status(422).json({ error: 'Duration must be a positive number' });
+    }
+    const parsedDuration = Number(duration);
+    if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+      return res.status(422).json({ error: 'Duration must be a positive number' });
+    }
+    const sanitizedDescription = sanitizePlainText(description);
+    if (!sanitizedDescription) return res.status(422).json({ error: 'Description must contain 1 to 500 characters of plain text' });
+    const validationError = validateExercisePayload({
+      description: sanitizedDescription,
+      duration: parsedDuration,
+      exerciseCheck,
+    });
+    if (validationError) return res.status(422).json({ error: validationError });
+
     const exercisesData = await Exercise.findOne(buildUserIdFilter(userId));
     if (!exercisesData) {
       return res.status(404).json({ error: 'Exercise data not found for this userId.' });
     }
-    const validationError = validateExercisePayload({
-      description,
-      duration: Number(duration),
-      exerciseCheck,
-    });
-
-    if (validationError) {
-      return res.status(400).json({ error: validationError });
-    }
-
     const exerciseEntry = {
-      description: description.trim(),
-      duration: Number(duration),
+      description: sanitizedDescription,
+      duration: parsedDuration,
       exerciseCheck,
     };
 
@@ -72,7 +81,8 @@ router.post('/:userId/add', verifyToken, ensureSelf('userId'), async (req, res) 
     });
   } catch (error) {
     console.error('Error adding exercise:', error);
-   res.status(500).json({ error: 'Error adding exercise to the database.' });
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 
@@ -93,26 +103,27 @@ router.delete(
       }
       exerciseToRemove.deleteOne();
       await exerciseData.save();
-      res.json({ message: `${exerciseId} Exercise deleted successfully.` });
+      return res.status(204).end();
     } catch (error) {
       console.error('Error deleting Exercise:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      const apiError = getApiErrorResponse(error);
+      res.status(apiError.status).json(apiError.body);
     }
   }
 );
 
 router.post('/:userId/track-exercise', verifyToken, ensureSelf('userId'), async (req, res) => {
   const { userId } = req.params;
-  const { date, count } = req.body;
+  const { date, count } = req.body || {};
 
   try {
-    if (!Number.isFinite(Number(count)) || Number(count) < 0) {
-      return res.status(400).json({ error: 'Invalid count value' });
+    if ((typeof count !== 'number' && !(typeof count === 'string' && count.trim() !== '')) || !Number.isFinite(Number(count)) || Number(count) < 0) {
+      return res.status(422).json({ error: 'Invalid count value' });
     }
 
     const parsedDate = normalizeDate(date);
     if (!parsedDate) {
-      return res.status(400).json({ error: 'Invalid date value' });
+      return res.status(422).json({ error: 'Invalid date value' });
     }
 
     const exerciseData = await Exercise.findOne(buildUserIdFilter(userId));
@@ -137,13 +148,14 @@ router.post('/:userId/track-exercise', verifyToken, ensureSelf('userId'), async 
     }
 
     await exerciseData.save();
-    res.status(201).json({
+    res.status(existingEntryIndex === -1 ? 201 : 200).json({
       message: 'Exercise data updated successfully',
       data: exerciseData.trackExercises,
     });
   } catch (error) {
     console.error('Error updating exercise data:', error);
-    res.status(500).json({ error: 'Error updating exercise data' });
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 
@@ -151,12 +163,13 @@ router.post('/:userId/track-exercise', verifyToken, ensureSelf('userId'), async 
 router.get('/:userId/data/:month', verifyToken, ensureSelf('userId'), async (req, res) => {
   const { month, userId } = req.params;
   try {
-    // Parse the month into a date range (start and end of the month)
+    const monthError = validateMonth(month);
+    if (monthError) return res.status(422).json({ error: monthError });
     const year = new Date().getFullYear();
-    const startDate = new Date(`${month} 1, ${year}`);
-    if (Number.isNaN(startDate.getTime())) {
-      return res.status(400).json({ error: 'Invalid month parameter' });
-    }
+    const monthIndex = Number.isInteger(Number(month))
+      ? Number(month) - 1
+      : new Date(`${month} 1, ${year}`).getMonth();
+    const startDate = new Date(year, monthIndex, 1);
     const endDate = new Date(year, startDate.getMonth() + 1, 0); // last day of the month
 
     const userIdObject = toObjectId(userId);
@@ -197,7 +210,8 @@ router.get('/:userId/data/:month', verifyToken, ensureSelf('userId'), async (req
     }
   } catch (error) {
     console.error('Error fetching exercise data:', error);
-    res.status(500).json({ error: 'Error fetching exercise data' });
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 

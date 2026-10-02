@@ -92,6 +92,7 @@ const Testimonials = () => {
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                     <Avatar
+                      aria-hidden="true"
                       sx={{
                         width: 32,
                         height: 32,

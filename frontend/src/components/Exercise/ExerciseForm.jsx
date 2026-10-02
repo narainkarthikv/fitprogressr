@@ -18,6 +18,7 @@ const ExerciseForm = ({ newExerciseData, handleChange, handleAdd, setFormVisible
           <TextField
             size="small"
             name="description"
+            label="Exercise name"
             placeholder="Exercise name"
             value={newExerciseData.description}
             onChange={handleChange}
@@ -44,6 +45,7 @@ const ExerciseForm = ({ newExerciseData, handleChange, handleAdd, setFormVisible
             size="small"
             type="number"
             name="duration"
+            label="Duration in minutes"
             placeholder="Minutes"
             value={newExerciseData.duration}
             onChange={handleChange}

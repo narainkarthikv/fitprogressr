@@ -15,6 +15,8 @@ const ExerciseForm = ({ exerciseDate, setExerciseDate, newExerciseCount, setNewE
           </Typography>
           <TextField
             type="date"
+            label="Exercise date"
+            InputLabelProps={{ shrink: true }}
             value={exerciseDate}
             onChange={(e) => setExerciseDate(e.target.value)}
             fullWidth
@@ -36,6 +38,7 @@ const ExerciseForm = ({ exerciseDate, setExerciseDate, newExerciseCount, setNewE
           </Typography>
           <TextField
             type="number"
+            label="Number of exercises"
             inputProps={{ min: 0 }}
             value={newExerciseCount}
             onChange={(e) => setNewExerciseCount(Number(e.target.value) || 0)}
