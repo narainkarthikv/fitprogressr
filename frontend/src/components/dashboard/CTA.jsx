@@ -125,5 +125,4 @@ CTA.propTypes = {
   onGetStartedClick: PropTypes.func,
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export default CTA;

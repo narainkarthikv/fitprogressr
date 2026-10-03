@@ -16,6 +16,7 @@ const UserExperience = ({ userDetails }) => {
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Avatar
+          aria-hidden="true"
           sx={{
             width: 48,
             height: 48,

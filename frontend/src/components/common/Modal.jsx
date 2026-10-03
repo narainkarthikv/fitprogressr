@@ -25,7 +25,7 @@ const Modal = ({ show, handleClose, title, children }) => (
       }}
     >
       {title}
-      <IconButton onClick={handleClose} size="small">
+      <IconButton onClick={handleClose} size="small" aria-label="Close dialog">
         <CloseIcon />
       </IconButton>
     </DialogTitle>

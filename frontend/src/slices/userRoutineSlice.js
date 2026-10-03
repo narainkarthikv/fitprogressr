@@ -1,8 +1,8 @@
 import { createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { getAuthConfig } from '../utils/api';
+import { API_BASE_URL, getAuthConfig } from '../utils/api';
 
-const backendURL = import.meta.env.VITE_API_URL;
+const backendURL = API_BASE_URL;
 
 const initialState = {
   userRoutineData: {},

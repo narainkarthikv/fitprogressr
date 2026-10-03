@@ -34,6 +34,7 @@ const UserDropdown = ({ handleLogout, onEditProfileClick }) => {
   return (
     <>
       <IconButton
+        aria-label="Open account menu"
         onClick={handleClick}
         size="small"
         sx={{

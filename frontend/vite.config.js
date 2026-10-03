@@ -6,7 +6,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true, // describe/test/expect
-    setupFiles: './src/__tests__/setupTests.jsx',
   },
   server: {
     host: '0.0.0.0',

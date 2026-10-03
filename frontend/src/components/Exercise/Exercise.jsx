@@ -6,33 +6,36 @@ const Exercise = ({ deleteExercise, exercise }) => {
     <TableRow
       hover
       sx={{
-        borderBottom: '1px solid',
-        borderColor: 'rgba(255, 255, 255, 0.05)',
-        transition: 'background-color 0.2s ease',
+        transition: 'background-color 160ms ease',
         '&:hover': {
-          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+          backgroundColor: 'rgba(109, 140, 255, 0.055)',
+        },
+        '&:last-child td': {
+          borderBottom: 0,
         },
       }}
     >
       <TableCell
         sx={{
-          py: 1.75,
+          py: 1.5,
+          px: { xs: 1.5, sm: 2 },
           color: 'text.primary',
-          fontSize: '0.95rem',
-          fontWeight: 500,
+          fontSize: '0.92rem',
+          fontWeight: 600,
+          lineHeight: 1.4,
         }}
       >
         {exercise.description}
       </TableCell>
-      <TableCell sx={{ py: 1.75, color: 'text.secondary', fontSize: '0.9rem' }}>
-        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+      <TableCell sx={{ py: 1.5, px: { xs: 1.5, sm: 2 }, color: 'text.secondary', fontSize: '0.9rem' }}>
+        <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.5 }}>
           {exercise.duration}
           <Typography component="span" variant="caption" sx={{ opacity: 0.6 }}>
             min
           </Typography>
         </Box>
       </TableCell>
-      <TableCell sx={{ py: 1.75 }}>
+      <TableCell sx={{ py: 1.5, px: { xs: 1.5, sm: 2 } }}>
         {exercise.exerciseCheck ? (
           <Chip
             icon={<CheckCircle sx={{ fontSize: 16 }} />}
@@ -63,13 +66,16 @@ const Exercise = ({ deleteExercise, exercise }) => {
           />
         )}
       </TableCell>
-      <TableCell sx={{ py: 1.75 }}>
+      <TableCell sx={{ py: 1, px: { xs: 1, sm: 1.5 }, textAlign: 'center' }}>
         <Tooltip title="Delete exercise" arrow>
           <IconButton
+            aria-label={`Delete exercise ${exercise.description}`}
             size="small"
             onClick={() => deleteExercise(exercise._id)}
             sx={{
-              color: 'rgba(255, 255, 255, 0.5)',
+              color: 'text.secondary',
+              width: 34,
+              height: 34,
               '&:hover': {
                 backgroundColor: 'rgba(239, 83, 80, 0.15)',
                 color: '#ef5350',

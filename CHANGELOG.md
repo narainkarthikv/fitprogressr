@@ -20,7 +20,29 @@ and this project adheres to Semantic Versioning.
 - Corrected repository licensing metadata mismatch by setting backend package license to MIT.
 - Replaced inaccurate `MIT-LICENSE.txt` copyright attribution.
 
+## [1.2.0] - 2026-10-02
+
+### Added
+- Added API response schemas and backend route and validator tests.
+- Added dashboard loading skeletons and a shared exercise dialog with workout and heatmap forms.
+
+### Changed
+- Modernized the dashboard, exercise table, streak, statistics, and activity heatmap, with tile intensity based on exercise count.
+- Added frontend form validation, lazy-loaded routes, error boundaries, and clearer API configuration handling.
+- Standardized authentication token naming and REST response status codes.
+
+### Fixed
+- Added consistent error handling around database operations and generic client-facing server errors.
+- Corrected REST status codes and simplified profile form labeling.
+
+### Security
+- Validated and sanitized user input, strengthened password requirements, and rate limited authentication endpoints.
+
 ## [1.1.4] - 2026-06-21
+
+### Fixed
+- Corrected Docker build process to handle file permissions correctly when switching to a non-root user.
+- Fixed npm install compatibility issues in containerized environments by running package installation before changing users.
 
 ### Security
 - **Docker Security Hardening:**
@@ -30,23 +52,7 @@ and this project adheres to Semantic Versioning.
   - Improved npm install commands with `--prefer-offline --no-audit` flags and cache clearing for safer dependency installation.
 - Updated Node.js engine requirements in package.json files from `>=18.0.0` to `>=20.0.0` for both frontend and backend.
 
-### Fixed
-- Corrected Docker build process to handle file permissions correctly when switching to non-root user.
-- Fixed npm install compatibility issues in containerized environments by running package installation before user context switch.
-
-### Benefits
-- **Reduced Attack Surface:** Non-root containers prevent container escape vulnerabilities from gaining host-level access.
-- **Latest Security Patches:** Node.js 22 includes security patches and performance improvements over Node.js 18.
-- **Production-Ready:** Follows Docker security best practices and industry standards.
-- **Compliance:** Aligns with container security scanning tools and compliance requirements.
-- **Reliable Builds:** Fixed permission handling ensures consistent Docker builds across different environments.
-
 ## [1.1.3] - 2026-06-21
-
-### Fixed
-- Fixed react-refresh ESLint warnings in frontend by extracting AppRoot component to separate file (main.jsx, CTA.jsx).
-- Standardized error response format across backend API routes to consistently use "error" key for error responses.
-- Resolved unused React import in AppRoot.jsx (React 17+ doesn't require React import for JSX).
 
 ### Changed
 - Refactored backend utility functions for better code organization and maintainability:
@@ -54,28 +60,30 @@ and this project adheres to Semantic Versioning.
   - Extracted exercise validation functions to `backend/utils/validators.js`.
   - Consolidated MongoDB ObjectId conversion and date normalization utilities.
 - Updated import statements in `routes/exercises.js` and `routes/user.js` to use centralized utility functions.
+- Reduced route-handler duplication and improved error-response consistency and separation of concerns.
 - Bumped package versions for patch release:
   - `frontend/package.json` -> `1.1.3`
   - `backend/package.json` -> `1.1.3`
 
-### Improvements
-- Enhanced code maintainability by reducing code duplication in route handlers.
-- Improved consistency in error response formats across all API endpoints.
-- Better separation of concerns with utility functions in dedicated files.
+### Fixed
+- Fixed react-refresh ESLint warnings by extracting `AppRoot` into separate files (`main.jsx`, `CTA.jsx`).
+- Standardized API error responses to use the `error` key.
+- Removed the unused React import from `AppRoot.jsx`.
 
 ## [1.1.2] - 2026-05-25
 
-### Fixed
-- Removed deprecated and vulnerable backend dependency `request` (it was unused), eliminating unfixable critical vulnerability chains.
-- Upgraded frontend toolchain dependencies via audit remediation, including Vite major upgrade to address reported security advisories.
-- Upgraded backend vulnerable dependencies (`nodemon`, `uuid`) to secure versions and cleared backend audit findings.
-- Resolved frontend linting errors caused by missing React hook imports, stale namespace usage, and unused imports/variables.
-- Updated frontend lint policy to disable noisy `react/prop-types` and `react/no-unescaped-entities` checks for current code style consistency.
-
 ### Changed
 - Bumped package versions for patched release:
-- `frontend/package.json` -> `1.1.2`
-- `backend/package.json` -> `1.1.2`
+  - `frontend/package.json` -> `1.1.2`
+  - `backend/package.json` -> `1.1.2`
+- Updated frontend lint policy to disable noisy `react/prop-types` and `react/no-unescaped-entities` checks.
+- Upgraded the frontend toolchain, including Vite, and backend dependencies.
+
+### Fixed
+- Resolved frontend linting errors caused by missing React hook imports, stale namespace usage, and unused imports/variables.
+
+### Security
+- Removed the deprecated, vulnerable backend dependency `request` and upgraded dependencies to address reported advisories.
 
 ## [1.1.1] - 2026-03-11
 

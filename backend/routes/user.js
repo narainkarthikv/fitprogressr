@@ -6,6 +6,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const verifyToken = require('../middleware/jwtAuth.js');
 const { ensureAdmin, ensureSelf } = require('../middleware/accessControl');
+const createRateLimit = require('../middleware/rateLimit');
+const { validateUserPayload, validateLoginPayload, validateProfilePayload } = require('../utils/validators');
+const { getApiErrorResponse } = require('../utils/apiErrors');
+const { sanitizePlainText } = require('../utils/sanitize');
 const {
   isBcryptHash,
   hashPassword,
@@ -19,6 +23,11 @@ if (!JWT_SECRET) {
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '1d';
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || JWT_SECRET;
 const REFRESH_TOKEN_EXPIRATION = process.env.REFRESH_TOKEN_EXPIRATION || '7d';
+const authRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many authentication attempts. Try again later.',
+});
 
 const createTokenPayload = (user) => ({
   id: user._id.toString(),
@@ -37,9 +46,10 @@ const createRefreshToken = (user) =>
   });
 
 const createAuthTokens = (user) => ({
-  token: createAccessToken(user),
+  accessToken: createAccessToken(user),
   refreshToken: createRefreshToken(user),
 });
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const verifyAndUpgradePassword = async (user, providedPassword) => {
   const storedHash = user.password;
@@ -60,21 +70,28 @@ const verifyAndUpgradePassword = async (user, providedPassword) => {
 };
 
 // Create a new user
-router.post('/add', async (req, res) => {
+router.post('/add', authRateLimit, async (req, res) => {
   try {
-    const { username, email, password } = req.body;
-
-    if (!password || password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    const { password } = req.body || {};
+    const username = sanitizePlainText(req.body?.username, 40);
+    const email = sanitizePlainText(req.body?.email, 254);
+    const validationError = validateUserPayload({ username, email, password });
+    if (validationError) {
+      return res.status(422).json({ error: validationError });
     }
+
+    const normalizedUsername = username.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await User.findOne({ $or: [{ username: normalizedUsername }, { email: normalizedEmail }] });
+    if (existingUser) return res.status(409).json({ error: 'Username or email already in use' });
 
     const hashedPassword = await hashPassword(password);
 
     const newUser = new User({
-      username,
+      username: normalizedUsername,
       xp: 0,
       totalDays: 0,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
@@ -87,23 +104,37 @@ router.post('/add', async (req, res) => {
     });
 
     // Save the new exercise to the database
-    await newExercise.save();
+    try {
+      await newExercise.save();
+    } catch (error) {
+      await User.deleteOne({ _id: newUser._id }).catch((cleanupError) => {
+        console.error('Failed to clean up incomplete user registration:', cleanupError);
+      });
+      throw error;
+    }
 
-    res.status(200).json({ message: 'User created successfully', user: sanitizeUser(newUser) });
+    res.status(201).json({ message: 'User created successfully', user: sanitizeUser(newUser) });
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error.code === 11000) {
+      return res.status(409).json({ error: 'Username or email already in use' });
+    }
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 
 // User login
-router.post('/login', async (req, res) => {
+router.post('/login', authRateLimit, async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const { email, password } = req.body || {};
+    const validationError = validateLoginPayload({ email, password });
+    if (validationError) return res.status(422).json({ error: validationError });
+    const normalizedEmail = email.trim();
+    const user = await User.findOne({ email: new RegExp(`^${escapeRegExp(normalizedEmail)}$`, 'i') });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const isPasswordValid = await verifyAndUpgradePassword(user, password);
@@ -112,10 +143,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    handlePasswordValid(user, res);
+    await handlePasswordValid(user, res);
   } catch (error) {
-    console.error('🔴 Outer catch block error:', error);
-    res.status(500).json({ error: 'Internal server error: ' + error.message });
+    console.error('Login failed:', error);
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 
@@ -163,26 +195,26 @@ async function handlePasswordValid(user, res) {
       await user.save();
     }
 
-    const { token, refreshToken } = createAuthTokens(user);
+    const { accessToken, refreshToken } = createAuthTokens(user);
 
     res.status(200).json({
       message: 'Login successful',
-      token,
+      accessToken,
       refreshToken,
       user: sanitizeUser(user),
     });
   } catch (error) {
-    console.error('🔴 Error in handlePasswordValid:', error.message);
-    console.error(error.stack);
-    res.status(500).json({ error: 'Internal server error', message: error.message });
+    console.error('Login session update failed:', error);
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 }
 
-router.post('/refresh-token', async (req, res) => {
+router.post('/refresh-token', authRateLimit, async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    const { refreshToken } = req.body || {};
 
-    if (!refreshToken) {
+    if (typeof refreshToken !== 'string' || !refreshToken) {
       return res.status(401).json({ error: 'Refresh token is required' });
     }
 
@@ -197,12 +229,16 @@ router.post('/refresh-token', async (req, res) => {
 
     res.status(200).json({
       message: 'Token refreshed successfully',
-      token: tokens.token,
+      accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     });
   } catch (error) {
     console.error('Refresh token error:', error.message);
-    return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    if (['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(error.name)) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+    const apiError = getApiErrorResponse(error);
+    return res.status(apiError.status).json(apiError.body);
   }
 });
 
@@ -221,7 +257,8 @@ router.get('/streak/:userID', verifyToken, ensureSelf('userID'), async (req, res
     });
   } catch (error) {
     console.error('Error fetching streak:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 
@@ -232,7 +269,8 @@ router.get('/', verifyToken, ensureAdmin, async (req, res) => {
     res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 
@@ -248,14 +286,21 @@ router.get('/:userId', verifyToken, ensureSelf('userId'), async (req, res) => {
     res.json(sanitizeUser(user));
   } catch (error) {
     console.error('Error fetching user:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 
 // Update user profile
 router.put('/:userId/update', verifyToken, ensureSelf('userId'), async (req, res) => {
   const { userId } = req.params;
-  const { username, email, currentPassword, newPassword } = req.body;
+  const body = req.body || {};
+  const username = body.username === undefined ? undefined : sanitizePlainText(body.username, 40) ?? body.username;
+  const email = body.email === undefined ? undefined : sanitizePlainText(body.email, 254) ?? body.email;
+  const { currentPassword, newPassword } = body;
+
+  const validationError = validateProfilePayload({ username, email, currentPassword, newPassword });
+  if (validationError) return res.status(422).json({ error: validationError });
 
   try {
     const user = await User.findById(userId);
@@ -263,39 +308,33 @@ router.put('/:userId/update', verifyToken, ensureSelf('userId'), async (req, res
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (username && username.trim()) {
-      if (username !== user.username) {
-        const existingUser = await User.findOne({ username });
+    if (username !== undefined) {
+      const normalizedUsername = username.trim();
+      if (normalizedUsername !== user.username) {
+        const existingUser = await User.findOne({ username: normalizedUsername });
         if (existingUser) {
-          return res.status(400).json({ error: 'Username already taken' });
+          return res.status(409).json({ error: 'Username already taken' });
         }
       }
-      user.username = username.trim();
+      user.username = normalizedUsername;
     }
 
-    if (email && email.trim()) {
-      if (email !== user.email) {
-        const existingUser = await User.findOne({ email });
+    if (email !== undefined) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (normalizedEmail !== user.email) {
+        const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
-          return res.status(400).json({ error: 'Email already taken' });
+          return res.status(409).json({ error: 'Email already taken' });
         }
       }
-      user.email = email.trim();
+      user.email = normalizedEmail;
     }
 
     if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({ error: 'Current password is required' });
-      }
-
       const isPasswordValid = await verifyAndUpgradePassword(user, currentPassword);
 
       if (!isPasswordValid) {
         return res.status(401).json({ error: 'Current password is incorrect' });
-      }
-
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters' });
       }
 
       user.password = await hashPassword(newPassword);
@@ -309,20 +348,21 @@ router.put('/:userId/update', verifyToken, ensureSelf('userId'), async (req, res
     });
   } catch (error) {
     console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 
 // Update totalDays
 router.post('/:userId/updateTotalDays', verifyToken, ensureSelf('userId'), async (req, res) => {
   const { userId } = req.params;
-  const { dayCheck } = req.body;
+  const { dayCheck } = req.body || {};
+  if (!Array.isArray(dayCheck) || dayCheck.length > 7 || dayCheck.some((day) => typeof day !== 'boolean')) {
+    return res.status(422).json({ error: 'dayCheck must be an array of up to 7 booleans' });
+  }
   try {
     const user = await User.findById(userId);
     if (user) {
-      if (!Array.isArray(dayCheck)) {
-        return res.status(400).json({ error: 'dayCheck must be an array' });
-      }
       const totalDays = dayCheck.filter(Boolean).length;
       user.totalDays = totalDays;
       await user.save();
@@ -332,7 +372,8 @@ router.post('/:userId/updateTotalDays', verifyToken, ensureSelf('userId'), async
     }
   } catch (error) {
     console.error('Error updating totalDays:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    const apiError = getApiErrorResponse(error);
+    res.status(apiError.status).json(apiError.body);
   }
 });
 

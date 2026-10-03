@@ -31,7 +31,7 @@ const LandingNav = ({ onSignInClick, onGetStartedClick }) => {
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      <Container maxWidth="lg">
+      <Container maxWidth={false} sx={{ px: { xs: 2, md: 3, xl: 4 } }}>
         <Toolbar
           disableGutters
           sx={{
@@ -42,19 +42,26 @@ const LandingNav = ({ onSignInClick, onGetStartedClick }) => {
           }}
         >
           {/* Logo */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <FaDumbbell
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <Box
               sx={{
-                fontSize: 32,
+                width: 38,
+                height: 38,
+                display: 'grid',
+                placeItems: 'center',
+                borderRadius: 2.5,
+                bgcolor: alpha(theme.palette.primary.main, 0.12),
                 color: 'primary.main',
               }}
-            />
+            >
+              <FaDumbbell sx={{ fontSize: 20 }} />
+            </Box>
             <Typography
               variant="h6"
               sx={{
                 fontWeight: 700,
-                fontSize: '1.25rem',
-                letterSpacing: '-0.02em',
+                fontSize: '1.1rem',
+                letterSpacing: '-0.04em',
               }}
             >
               FitProgressr

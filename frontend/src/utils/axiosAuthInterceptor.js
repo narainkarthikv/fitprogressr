@@ -1,13 +1,14 @@
 import axios from 'axios';
 import {
   clearAuthStorage,
+  API_BASE_URL,
   getAccessToken,
   getRefreshToken,
   setAccessToken,
   setRefreshToken,
 } from './api';
 
-const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const backendURL = API_BASE_URL;
 
 let interceptorInitialized = false;
 let isRefreshing = false;
@@ -25,14 +26,14 @@ const isBackendRequest = (requestUrl = '') => {
   return requestUrl.startsWith('/api/');
 };
 
-const flushQueue = (error, token = null) => {
+const flushQueue = (error, accessToken = null) => {
   pendingRequestsQueue.forEach((promise) => {
     if (error) {
       promise.reject(error);
       return;
     }
 
-    promise.resolve(token);
+    promise.resolve(accessToken);
   });
 
   pendingRequestsQueue = [];
@@ -41,6 +42,19 @@ const flushQueue = (error, token = null) => {
 const notifySessionExpired = () => {
   clearAuthStorage();
   window.dispatchEvent(new Event('auth:logout'));
+};
+
+const logApiEvent = (event, config, status) => {
+  if (!import.meta.env.DEV && import.meta.env.VITE_API_LOGGING !== 'true') return;
+  const url = new URL(config.url || '', config.baseURL || backendURL || window.location.origin);
+  console.info(JSON.stringify({
+    source: 'fitprogressr-api',
+    event,
+    method: (config.method || 'get').toUpperCase(),
+    path: url.pathname,
+    ...(status ? { status } : {}),
+    ...(config.metadata?.startedAt ? { durationMs: Date.now() - config.metadata.startedAt } : {}),
+  }));
 };
 
 const requestNewAccessToken = async () => {
@@ -58,7 +72,7 @@ const requestNewAccessToken = async () => {
     }
   );
 
-  const newAccessToken = response.data?.token;
+  const newAccessToken = response.data?.accessToken;
   const newRefreshToken = response.data?.refreshToken;
 
   if (!newAccessToken || !newRefreshToken) {
@@ -82,23 +96,33 @@ export const initializeAxiosAuthInterceptor = () => {
         return config;
       }
 
-      const token = getAccessToken();
+      config.metadata = { ...config.metadata, startedAt: Date.now() };
+      const accessToken = getAccessToken();
 
-      if (token) {
+      if (accessToken) {
         config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
+        config.headers.Authorization = `Bearer ${accessToken}`;
       }
 
+      logApiEvent('request', config);
       return config;
     },
     (error) => Promise.reject(error)
   );
 
   axios.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      if (isBackendRequest(response.config?.url)) {
+        logApiEvent('response', response.config, response.status);
+      }
+      return response;
+    },
     async (error) => {
       const originalRequest = error.config || {};
       const statusCode = error.response?.status;
+      if (isBackendRequest(originalRequest.url)) {
+        logApiEvent('response_error', originalRequest, statusCode || 0);
+      }
       const isRefreshRequest =
         typeof originalRequest.url === 'string' &&
         originalRequest.url.includes('/api/user/refresh-token');
@@ -118,8 +142,8 @@ export const initializeAxiosAuthInterceptor = () => {
         return new Promise((resolve, reject) => {
           pendingRequestsQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
+          .then((accessToken) => {
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return axios(originalRequest);
           })
           .catch((queueError) => Promise.reject(queueError));

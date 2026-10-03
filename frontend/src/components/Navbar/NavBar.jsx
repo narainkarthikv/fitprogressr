@@ -25,6 +25,7 @@ import {
 import NotificationDropdown from './NotificationDropdown';
 import UserDropdown from './UserDropdown';
 import EditProfileModal from '../profile/EditProfileModal';
+import { API_BASE_URL, getAccessToken } from '../../utils/api';
 
 const NavBar = ({
   user,
@@ -37,31 +38,45 @@ const NavBar = ({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [userDetails, setUserDetails] = useState({ username: '', email: '' });
+  const [userDetailsLoading, setUserDetailsLoading] = useState(true);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const backendURL = API_BASE_URL;
 
   useEffect(() => {
+    let isCurrent = true;
+
     const fetchUserDetails = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const accessToken = getAccessToken();
         const response = await axios.get(`${backendURL}/api/user/${user}`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         });
-        setUserDetails({
-          username: response.data.username,
-          email: response.data.email,
-        });
+        if (isCurrent) {
+          setUserDetails({
+            username: response.data.username,
+            email: response.data.email,
+          });
+        }
       } catch (err) {
         console.error('Error fetching user details:', err);
+      } finally {
+        if (isCurrent) setUserDetailsLoading(false);
       }
     };
 
     if (user) {
+      setUserDetailsLoading(true);
       fetchUserDetails();
+    } else {
+      setUserDetailsLoading(false);
     }
+
+    return () => {
+      isCurrent = false;
+    };
   }, [user, backendURL]);
 
   const handleDrawerToggle = () => {
@@ -121,9 +136,9 @@ const NavBar = ({
 
   return (
     <>
-      <AppBar position="sticky" elevation={0}>
-        <Container maxWidth="lg">
-          <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
+      <AppBar position="sticky" elevation={0} sx={{ borderRadius: 0 }}>
+        <Container maxWidth={false} sx={{ px: { xs: 2, md: 3, xl: 4 } }}>
+          <Toolbar disableGutters sx={{ justifyContent: 'space-between', minHeight: 72 }}>
             {/* Logo */}
             <Box
               component={RouterLink}
@@ -135,13 +150,28 @@ const NavBar = ({
                 textDecoration: 'none',
                 color: 'inherit',
                 fontWeight: 700,
-                fontSize: '1.25rem',
+                fontSize: '1.125rem',
+                letterSpacing: '-0.04em',
                 '&:hover': {
                   opacity: 0.8,
                 },
               }}
             >
-              <FaDumbbell sx={{ fontSize: '1.5rem', color: 'primary.main' }} />
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  display: 'grid',
+                  placeItems: 'center',
+                  borderRadius: 2.5,
+                  bgcolor: 'action.hover',
+                  color: 'primary.main',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <FaDumbbell sx={{ fontSize: '1.15rem' }} />
+              </Box>
               <Typography
                 variant="h6"
                 sx={{
@@ -225,6 +255,7 @@ const NavBar = ({
         userId={user}
         currentUsername={userDetails.username}
         currentEmail={userDetails.email}
+        profileLoading={userDetailsLoading}
         onProfileUpdated={handleProfileUpdated}
       />
     </>
@@ -233,6 +264,7 @@ const NavBar = ({
 
 NavBar.propTypes = {
   user: PropTypes.string.isRequired,
+  userDetails: PropTypes.shape({ userId: PropTypes.string.isRequired }).isRequired,
   handleLogout: PropTypes.func.isRequired,
   notifications: PropTypes.arrayOf(
     PropTypes.shape({

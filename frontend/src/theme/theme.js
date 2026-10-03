@@ -2,12 +2,12 @@ import { createTheme, alpha } from '@mui/material/styles';
 
 export const lightTokens = {
   background: {
-    primary: '#FFFFFF',
-    secondary: '#F5F5F5',
+    primary: '#F4F7FB',
+    secondary: '#EEF2F7',
   },
   surface: {
     primary: '#FFFFFF',
-    secondary: '#F5F5F5',
+    secondary: '#F8FAFC',
     overlay: 'rgba(0, 0, 0, 0.5)',
   },
   text: {
@@ -17,28 +17,28 @@ export const lightTokens = {
     inverse: '#FFFFFF',
   },
   interactive: {
-    default: '#3B82F6',
-    hover: '#2563EB',
-    active: '#1D4ED8',
+    default: '#526FE8',
+    hover: '#405BD1',
+    active: '#344BB6',
     disabled: '#D1D5DB',
   },
   success: '#22C55E',
   error: '#EF4444',
   warning: '#F59E0B',
   border: {
-    primary: '#E5E7EB',
-    subtle: '#F0F0F0',
+    primary: '#E3E9F1',
+    subtle: '#EEF2F7',
   },
 };
 
 export const darkTokens = {
   background: {
-    primary: '#0B1118',
-    secondary: '#121B26',
+    primary: '#0A1018',
+    secondary: '#0E1722',
   },
   surface: {
-    primary: '#121B26',
-    secondary: '#0F1822',
+    primary: '#111B28',
+    secondary: '#0E1722',
     overlay: 'rgba(2, 10, 18, 0.65)',
   },
   text: {
@@ -48,17 +48,17 @@ export const darkTokens = {
     inverse: '#0B1118',
   },
   interactive: {
-    default: '#3B82F6',
-    hover: '#2563EB',
-    active: '#1E4FBF',
+    default: '#6D8CFF',
+    hover: '#829BFF',
+    active: '#5877E8',
     disabled: '#1F2C3B',
   },
   success: '#22C55E',
   error: '#EF4444',
   warning: '#F59E0B',
   border: {
-    primary: '#1E2C3C',
-    subtle: '#0F1822',
+    primary: '#202D3D',
+    subtle: '#172332',
   },
 };
 
@@ -188,7 +188,7 @@ export const getAppTheme = (mode = 'dark') => {
     },
 
     shape: {
-      borderRadius: 16,
+      borderRadius: 14,
     },
 
     components: {
@@ -204,6 +204,7 @@ export const getAppTheme = (mode = 'dark') => {
             minHeight: '100vh',
             backgroundColor: colors.background.primary,
             color: colors.text.primary,
+            letterSpacing: '-0.01em',
           },
           '#root': {
             minHeight: '100vh',
@@ -266,7 +267,9 @@ export const getAppTheme = (mode = 'dark') => {
             textTransform: 'none',
             fontSize: '1rem',
             fontWeight: 600,
-            borderRadius: 8,
+            borderRadius: 10,
+            minHeight: 40,
+            letterSpacing: '-0.01em',
             transition: 'transform 0.2s ease, box-shadow 0.2s ease',
             '&.Mui-disabled': {
               backgroundColor: colors.interactive.disabled,
@@ -320,6 +323,8 @@ export const getAppTheme = (mode = 'dark') => {
             '& .MuiOutlinedInput-root': {
               backgroundColor: colors.surface.secondary,
               color: colors.text.primary,
+              borderRadius: 10,
+              transition: 'background-color 160ms ease, box-shadow 160ms ease',
               '& fieldset': {
                 borderColor: colors.border.primary,
               },
@@ -346,14 +351,43 @@ export const getAppTheme = (mode = 'dark') => {
         },
       },
 
+      MuiTableCell: {
+        styleOverrides: {
+          root: {
+            borderColor: colors.border.primary,
+            paddingTop: 12,
+            paddingBottom: 12,
+          },
+          head: {
+            color: colors.text.secondary,
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          },
+        },
+      },
+
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            border: `1px solid ${colors.border.primary}`,
+            borderRadius: 14,
+            boxShadow: isDark
+              ? '0 16px 40px rgba(0, 0, 0, 0.32)'
+              : '0 16px 40px rgba(20, 35, 60, 0.14)',
+          },
+        },
+      },
+
       MuiAppBar: {
         styleOverrides: {
           root: {
             backgroundColor: colors.surface.primary,
-            boxShadow: isDark
-              ? '0 6px 18px rgba(6, 12, 18, 0.45)'
-              : '0 4px 14px rgba(15, 23, 42, 0.08)',
+            backgroundImage: 'none',
+            boxShadow: 'none',
             borderBottom: `1px solid ${colors.border.primary}`,
+            backdropFilter: 'blur(16px)',
           },
         },
       },
@@ -362,6 +396,9 @@ export const getAppTheme = (mode = 'dark') => {
         styleOverrides: {
           root: {
             backgroundColor: colors.surface.primary,
+            backgroundImage: 'none',
+            boxShadow: 'none',
+            borderRadius: 18,
           },
         },
       },
