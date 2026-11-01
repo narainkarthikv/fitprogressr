@@ -11,7 +11,7 @@ import Footer from '../components/dashboard/Footer';
 import LandingNav from '../components/dashboard/LandingNav';
 import AuthModal from '../components/auth/AuthModal';
 
-const DashBoard = ({ isLoggedIn, onAuthSuccess }) => {
+const LandingPage = ({ isLoggedIn, onAuthSuccess }) => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('signup');
 
@@ -60,9 +60,9 @@ const DashBoard = ({ isLoggedIn, onAuthSuccess }) => {
   );
 };
 
-DashBoard.propTypes = {
+LandingPage.propTypes = {
   isLoggedIn: PropTypes.bool,
   onAuthSuccess: PropTypes.func,
 };
 
-export default DashBoard;
+export default LandingPage;

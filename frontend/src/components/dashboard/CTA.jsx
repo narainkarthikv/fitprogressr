@@ -57,7 +57,7 @@ const CTA = ({ isLoggedIn, onGetStartedClick }) => {
               letterSpacing: '-0.01em',
             }}
           >
-            Start tracking today
+            Make your next session count.
           </Typography>
 
           <Typography
@@ -72,8 +72,8 @@ const CTA = ({ isLoggedIn, onGetStartedClick }) => {
               fontWeight: 400,
             }}
           >
-            Join others who are using FitProgressr to stay consistent with their fitness. No
-            commitments, just simple workout tracking.
+            Start a training log, set a goal that matters to you, and build a clearer picture of
+            your consistency over time.
           </Typography>
 
           {isLoggedIn ? (
@@ -111,7 +111,7 @@ const CTA = ({ isLoggedIn, onGetStartedClick }) => {
                 },
               }}
             >
-              Get Started Free
+              Create your account
             </Button>
           )}
         </Box>

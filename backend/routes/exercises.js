@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Exercise = require('../models/exercise.model');
-const { updateUserGoalProgress } = require('../services/goalProgress');
+const { updateUserActivityProgress } = require('../services/goalProgress');
+const { evaluateAchievements } = require('../services/achievementService');
 const verifyToken = require('../middleware/jwtAuth.js');
 const { ensureAdmin, ensureSelf } = require('../middleware/accessControl');
 const {
@@ -13,6 +14,11 @@ const {
 const { validateExercisePayload, validateMonth } = require('../utils/validators');
 const { getApiErrorResponse } = require('../utils/apiErrors');
 const { sanitizePlainText } = require('../utils/sanitize');
+
+const refreshTrainingProgress = async (userId) => {
+  await updateUserActivityProgress(userId);
+  await evaluateAchievements(userId);
+};
 
 router.get('/', verifyToken, ensureAdmin, async (req, res) => {
   try {
@@ -56,7 +62,10 @@ router.post('/:userId/add', verifyToken, ensureSelf('userId'), async (req, res) 
       return res.status(422).json({ error: 'Duration must be a positive number' });
     }
     const sanitizedDescription = sanitizePlainText(description);
-    if (!sanitizedDescription) return res.status(422).json({ error: 'Description must contain 1 to 500 characters of plain text' });
+    if (!sanitizedDescription)
+      return res
+        .status(422)
+        .json({ error: 'Description must contain 1 to 500 characters of plain text' });
     const validationError = validateExercisePayload({
       description: sanitizedDescription,
       duration: parsedDuration,
@@ -77,7 +86,7 @@ router.post('/:userId/add', verifyToken, ensureSelf('userId'), async (req, res) 
 
     exercisesData.Exercises.push(exerciseEntry);
     await exercisesData.save();
-    await updateUserGoalProgress(userId);
+    await refreshTrainingProgress(userId);
     res.status(201).json({
       message: 'Exercise added successfully',
       newExercise: exercisesData.Exercises[exercisesData.Exercises.length - 1],
@@ -106,7 +115,7 @@ router.delete(
       }
       exerciseToRemove.deleteOne();
       await exerciseData.save();
-      await updateUserGoalProgress(userId);
+      await refreshTrainingProgress(userId);
       return res.status(204).end();
     } catch (error) {
       console.error('Error deleting Exercise:', error);
@@ -121,7 +130,11 @@ router.post('/:userId/track-exercise', verifyToken, ensureSelf('userId'), async 
   const { date, count } = req.body || {};
 
   try {
-    if ((typeof count !== 'number' && !(typeof count === 'string' && count.trim() !== '')) || !Number.isFinite(Number(count)) || Number(count) < 0) {
+    if (
+      (typeof count !== 'number' && !(typeof count === 'string' && count.trim() !== '')) ||
+      !Number.isFinite(Number(count)) ||
+      Number(count) < 0
+    ) {
       return res.status(422).json({ error: 'Invalid count value' });
     }
 

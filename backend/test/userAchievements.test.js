@@ -49,13 +49,15 @@ test('user achievements require authentication and return only the current user 
     const sendJson = res.json.bind(res);
 
     res.json = (body) => {
-      if (!validateApiResponse({
-        method: req.method,
-        routePath: req.route?.path,
-        baseUrl: req.baseUrl || '',
-        statusCode: res.statusCode,
-        body,
-      })) {
+      if (
+        !validateApiResponse({
+          method: req.method,
+          routePath: req.route?.path,
+          baseUrl: req.baseUrl || '',
+          statusCode: res.statusCode,
+          body,
+        })
+      ) {
         res.statusCode = 500;
         return sendJson({ error: 'Internal server error' });
       }
@@ -85,9 +87,7 @@ test('user achievements require authentication and return only the current user 
     assert.equal(response.body[0].achievementId.name, 'First Workout');
     assert.equal(response.body[0].achievementId.xpReward, 10);
 
-    await request(app)
-      .get('/api/user-achievements')
-      .set('Authorization', `Bearer ${otherToken}`);
+    await request(app).get('/api/user-achievements').set('Authorization', `Bearer ${otherToken}`);
 
     assert.deepEqual(query, { userId: otherUserId });
   } finally {

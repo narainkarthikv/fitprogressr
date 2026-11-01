@@ -1,15 +1,20 @@
-
 const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
 
 const WorkoutSession = require('../models/workoutSession.model');
 const achievementService = require('../services/achievementService');
+const { updateUserActivityProgress } = require('../services/goalProgress');
 const verifyToken = require('../middleware/jwtAuth');
 const { getApiErrorResponse } = require('../utils/apiErrors');
 const { sanitizePlainText } = require('../utils/sanitize');
 
 router.use(verifyToken);
+
+const refreshProgress = async (userId) => {
+  await updateUserActivityProgress(userId);
+  await achievementService.evaluateAchievements(userId);
+};
 
 const getUtcDay = (value) => {
   const date = new Date(value);
@@ -18,9 +23,7 @@ const getUtcDay = (value) => {
     return null;
   }
 
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-  );
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 };
 
 const validateExercises = (exercises) => {
@@ -40,11 +43,28 @@ const validateExercises = (exercises) => {
       return 'Each exercise must have a valid name and non-negative duration';
     }
 
-    if (
-      exercise.completed !== undefined &&
-      typeof exercise.completed !== 'boolean'
-    ) {
+    if (exercise.completed !== undefined && typeof exercise.completed !== 'boolean') {
       return 'Exercise completed must be a boolean';
+    }
+
+    if (
+      exercise.sets !== undefined &&
+      (!Array.isArray(exercise.sets) ||
+        exercise.sets.length > 50 ||
+        exercise.sets.some(
+          (set) =>
+            !set ||
+            !Number.isInteger(set.reps) ||
+            set.reps < 1 ||
+            (set.weight !== undefined && (!Number.isFinite(set.weight) || set.weight < 0)) ||
+            (set.unit !== undefined && !['kg', 'lb'].includes(set.unit))
+        ))
+    ) {
+      return 'Sets must include valid reps, weight, and units';
+    }
+
+    if (exercise.notes !== undefined && typeof exercise.notes !== 'string') {
+      return 'Exercise notes must be text';
     }
   }
 
@@ -73,14 +93,15 @@ router.post('/', async (req, res) => {
         name: sanitizePlainText(exercise.name),
         duration: exercise.duration,
         completed: exercise.completed ?? false,
+        sets: exercise.sets || [],
+        notes: sanitizePlainText(exercise.notes || '', 1000) || '',
       })),
     });
 
     try {
-      await achievementService.evaluateAchievements(req.user.id);
-    } catch (achievementError) {
-      // Gamification failures must not fail an already-saved workout.
-      console.error('Achievement evaluation failed:', achievementError.message);
+      await refreshProgress(req.user.id);
+    } catch (progressError) {
+      console.error('Workout progress refresh failed:', progressError.message);
     }
 
     return res.status(201).json(session);
@@ -164,6 +185,8 @@ router.put('/:sessionId', async (req, res) => {
         name: sanitizePlainText(exercise.name),
         duration: exercise.duration,
         completed: exercise.completed ?? false,
+        sets: exercise.sets || [],
+        notes: sanitizePlainText(exercise.notes || '', 1000) || '',
       }));
     }
 
@@ -184,6 +207,12 @@ router.put('/:sessionId', async (req, res) => {
 
     if (!session) {
       return res.status(404).json({ error: 'Workout session not found' });
+    }
+
+    try {
+      await refreshProgress(req.user.id);
+    } catch (progressError) {
+      console.error('Workout progress refresh failed:', progressError.message);
     }
 
     return res.json(session);
@@ -213,6 +242,12 @@ router.delete('/:sessionId', async (req, res) => {
 
     if (!session) {
       return res.status(404).json({ error: 'Workout session not found' });
+    }
+
+    try {
+      await refreshProgress(req.user.id);
+    } catch (progressError) {
+      console.error('Workout progress refresh failed:', progressError.message);
     }
 
     return res.status(204).end();

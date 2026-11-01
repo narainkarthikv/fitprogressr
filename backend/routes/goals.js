@@ -24,9 +24,10 @@ const parseGoalPayload = (body) => {
     (goalType === 'workout_count' && !Number.isInteger(target))
   ) {
     return {
-      error: goalType === 'workout_count'
-        ? 'Workout target must be a positive integer'
-        : 'Target must be a positive number',
+      error:
+        goalType === 'workout_count'
+          ? 'Workout target must be a positive integer'
+          : 'Target must be a positive number',
     };
   }
 

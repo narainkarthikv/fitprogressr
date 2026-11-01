@@ -1,14 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
-import exercisesReducer from '../slices/exercisesSlice';
-import userRoutineReducer from '../slices/userRoutineSlice';
-import heatMapReducer from '../slices/heatMapSlice';
+import { setupListeners } from '@reduxjs/toolkit/query';
+import { api } from '../services/api';
 
 const store = configureStore({
   reducer: {
-    exercises: exercisesReducer,
-    userRoutine: userRoutineReducer,
-    heatMap: heatMapReducer,
+    [api.reducerPath]: api.reducer,
   },
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(api.middleware),
 });
+
+setupListeners(store.dispatch);
 
 export default store;

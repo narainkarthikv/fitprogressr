@@ -632,7 +632,6 @@ Want to help build these features? Check out our [Contributing Guide](./CONTRIBU
 
 _Let's build the best fitness tracker together! 🚀_
 
-
 ## End-to-End Testing
 
 This project uses Playwright for browser-based end-to-end testing.

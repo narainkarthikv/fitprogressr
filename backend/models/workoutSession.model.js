@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
@@ -18,6 +17,17 @@ const workoutExerciseSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    sets: {
+      type: [
+        {
+          reps: { type: Number, min: 1, required: true },
+          weight: { type: Number, min: 0, default: 0 },
+          unit: { type: String, enum: ['kg', 'lb'], default: 'kg' },
+        },
+      ],
+      default: [],
+    },
+    notes: { type: String, trim: true, maxlength: 1000, default: '' },
   },
   { _id: true }
 );
@@ -47,9 +57,6 @@ const workoutSessionSchema = new Schema(
 workoutSessionSchema.index({ userId: 1, date: 1 }, { unique: true });
 workoutSessionSchema.index({ userId: 1, date: -1 });
 
-const WorkoutSession = mongoose.model(
-  'WorkoutSession',
-  workoutSessionSchema
-);
+const WorkoutSession = mongoose.model('WorkoutSession', workoutSessionSchema);
 
 module.exports = WorkoutSession;

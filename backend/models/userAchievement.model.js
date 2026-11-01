@@ -22,10 +22,7 @@ const userAchievementSchema = new mongoose.Schema(
   }
 );
 
-userAchievementSchema.index(
-  { userId: 1, achievementId: 1 },
-  { unique: true }
-);
+userAchievementSchema.index({ userId: 1, achievementId: 1 }, { unique: true });
 userAchievementSchema.index({ userId: 1 });
 
 module.exports = mongoose.model('UserAchievement', userAchievementSchema);

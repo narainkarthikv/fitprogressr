@@ -1,12 +1,4 @@
-import {
-  Box,
-  Container,
-  Typography,
-  Button,
-  Stack,
-  alpha,
-  useTheme,
-} from '@mui/material';
+import { Box, Container, Typography, Button, Stack, alpha, useTheme } from '@mui/material';
 import { Favorite, Coffee } from '@mui/icons-material';
 
 const Support = () => {
@@ -58,9 +50,9 @@ const Support = () => {
               mb: 4,
             }}
           >
-            Building a fitness app that helps you stay consistent takes time and energy.
-            If FitProgressr makes your workouts better, consider buying us a coffee!
-            Every bit helps keep this project independent and ad-free. 💪
+            Building a fitness app that helps you stay consistent takes time and energy. If
+            FitProgressr makes your workouts better, consider buying us a coffee! Every bit helps
+            keep this project independent and ad-free. 💪
           </Typography>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -115,7 +107,8 @@ const Support = () => {
               fontSize: '0.875rem',
             }}
           >
-            ✨ Donations are optional and never required. FitProgressr will always be free and open source!
+            ✨ Donations are optional and never required. FitProgressr will always be free and open
+            source!
           </Typography>
         </Box>
       </Container>

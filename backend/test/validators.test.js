@@ -11,30 +11,42 @@ const createRateLimit = require('../middleware/rateLimit');
 const { sanitizePlainText } = require('../utils/sanitize');
 
 test('validates registration fields and password complexity', () => {
-  assert.equal(validateUserPayload({
-    username: 'runner',
-    email: 'runner@example.com',
-    password: 'StrongPass1!',
-  }), null);
-  assert.match(validateUserPayload({
-    username: 'ab',
-    email: 'invalid',
-    password: 'weak',
-  }), /Username/);
-  assert.match(validateUserPayload({
-    username: 'runner',
-    email: 'runner@example.com',
-    password: 'weakpass1',
-  }), /Password/);
+  assert.equal(
+    validateUserPayload({
+      username: 'runner',
+      email: 'runner@example.com',
+      password: 'StrongPass1!',
+    }),
+    null
+  );
+  assert.match(
+    validateUserPayload({
+      username: 'ab',
+      email: 'invalid',
+      password: 'weak',
+    }),
+    /Username/
+  );
+  assert.match(
+    validateUserPayload({
+      username: 'runner',
+      email: 'runner@example.com',
+      password: 'weakpass1',
+    }),
+    /Password/
+  );
 });
 
 test('validates profile fields before database access', () => {
-  assert.equal(validateProfilePayload({
-    username: 'runner',
-    email: 'runner@example.com',
-    currentPassword: 'OldPassword1!',
-    newPassword: 'NewPassword2!',
-  }), null);
+  assert.equal(
+    validateProfilePayload({
+      username: 'runner',
+      email: 'runner@example.com',
+      currentPassword: 'OldPassword1!',
+      newPassword: 'NewPassword2!',
+    }),
+    null
+  );
   assert.match(validateProfilePayload({ username: 'x' }), /Username/);
   assert.match(validateProfilePayload({ newPassword: 'weak' }), /Current password/);
 });
@@ -52,41 +64,56 @@ test('validates successful API payloads against route response contracts', () =>
     email: 'runner@example.com',
     role: 'user',
   };
-  assert.equal(validateApiResponse({
-    method: 'POST',
-    routePath: '/add',
-    baseUrl: '/api/user',
-    statusCode: 201,
-    body: { message: 'User created successfully', user: validUser },
-  }), true);
-  assert.equal(validateApiResponse({
-    method: 'GET',
-    routePath: '/',
-    baseUrl: '/api/health',
-    statusCode: 200,
-    body: { status: 'ok', uptime: 1, timestamp: new Date().toISOString() },
-  }), true);
-  assert.equal(validateApiResponse({
-    method: 'POST',
-    routePath: '/add',
-    baseUrl: '/api/user',
-    statusCode: 201,
-    body: { message: 'User created successfully', user: { password: 'leaked' } },
-  }), false);
-  assert.equal(validateApiResponse({
-    method: 'GET',
-    routePath: '/:userId',
-    baseUrl: '/api/user',
-    statusCode: 404,
-    body: { error: 'User not found' },
-  }), true);
-  assert.equal(validateApiResponse({
-    method: 'GET',
-    routePath: '/unregistered',
-    baseUrl: '/api/user',
-    statusCode: 200,
-    body: { unexpected: true },
-  }), false);
+  assert.equal(
+    validateApiResponse({
+      method: 'POST',
+      routePath: '/add',
+      baseUrl: '/api/user',
+      statusCode: 201,
+      body: { message: 'User created successfully', user: validUser },
+    }),
+    true
+  );
+  assert.equal(
+    validateApiResponse({
+      method: 'GET',
+      routePath: '/',
+      baseUrl: '/api/health',
+      statusCode: 200,
+      body: { status: 'ok', uptime: 1, timestamp: new Date().toISOString() },
+    }),
+    true
+  );
+  assert.equal(
+    validateApiResponse({
+      method: 'POST',
+      routePath: '/add',
+      baseUrl: '/api/user',
+      statusCode: 201,
+      body: { message: 'User created successfully', user: { password: 'leaked' } },
+    }),
+    false
+  );
+  assert.equal(
+    validateApiResponse({
+      method: 'GET',
+      routePath: '/:userId',
+      baseUrl: '/api/user',
+      statusCode: 404,
+      body: { error: 'User not found' },
+    }),
+    true
+  );
+  assert.equal(
+    validateApiResponse({
+      method: 'GET',
+      routePath: '/unregistered',
+      baseUrl: '/api/user',
+      statusCode: 200,
+      body: { unexpected: true },
+    }),
+    false
+  );
 });
 
 test('rate limits authentication requests and returns retry metadata', async () => {
@@ -109,16 +136,31 @@ test('rate limits authentication requests and returns retry metadata', async () 
   let nextCalls = 0;
   const response = () => ({
     headers: {},
-    set(name, value) { this.headers[name] = value; return this; },
-    status(code) { this.statusCode = code; return this; },
-    json(body) { this.body = body; return this; },
+    set(name, value) {
+      this.headers[name] = value;
+      return this;
+    },
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    },
   });
   const request = { ip: '127.0.0.1', socket: { remoteAddress: '127.0.0.1' } };
 
-  await middleware(request, response(), () => { nextCalls += 1; });
-  await middleware(request, response(), () => { nextCalls += 1; });
+  await middleware(request, response(), () => {
+    nextCalls += 1;
+  });
+  await middleware(request, response(), () => {
+    nextCalls += 1;
+  });
   const limitedResponse = response();
-  await middleware(request, limitedResponse, () => { nextCalls += 1; });
+  await middleware(request, limitedResponse, () => {
+    nextCalls += 1;
+  });
 
   assert.equal(nextCalls, 2);
   assert.equal(limitedResponse.statusCode, 429);
@@ -127,16 +169,22 @@ test('rate limits authentication requests and returns retry metadata', async () 
 });
 
 test('rejects invalid exercise fields and accepts valid month names and numbers', () => {
-  assert.equal(validateExercisePayload({
-    description: 'Morning run',
-    duration: 30,
-    exerciseCheck: true,
-  }), null);
-  assert.match(validateExercisePayload({
-    description: '   ',
-    duration: Number.NaN,
-    exerciseCheck: 'yes',
-  }), /Description/);
+  assert.equal(
+    validateExercisePayload({
+      description: 'Morning run',
+      duration: 30,
+      exerciseCheck: true,
+    }),
+    null
+  );
+  assert.match(
+    validateExercisePayload({
+      description: '   ',
+      duration: Number.NaN,
+      exerciseCheck: 'yes',
+    }),
+    /Description/
+  );
   assert.equal(validateMonth('October'), null);
   assert.equal(validateMonth('10'), null);
   assert.match(validateMonth('13'), /month/);
@@ -155,27 +203,36 @@ test('validates Goal API response contracts', () => {
     updatedAt: '2026-10-02T00:00:00.000Z',
   };
 
-  assert.equal(validateApiResponse({
-    method: 'POST',
-    routePath: '/:userId',
-    baseUrl: '/api/goals',
-    statusCode: 201,
-    body: { message: 'Goal created successfully', goal },
-  }), true);
+  assert.equal(
+    validateApiResponse({
+      method: 'POST',
+      routePath: '/:userId',
+      baseUrl: '/api/goals',
+      statusCode: 201,
+      body: { message: 'Goal created successfully', goal },
+    }),
+    true
+  );
 
-  assert.equal(validateApiResponse({
-    method: 'GET',
-    routePath: '/:userId',
-    baseUrl: '/api/goals',
-    statusCode: 200,
-    body: [goal],
-  }), true);
+  assert.equal(
+    validateApiResponse({
+      method: 'GET',
+      routePath: '/:userId',
+      baseUrl: '/api/goals',
+      statusCode: 200,
+      body: [goal],
+    }),
+    true
+  );
 
-  assert.equal(validateApiResponse({
-    method: 'GET',
-    routePath: '/:userId/:goalId',
-    baseUrl: '/api/goals',
-    statusCode: 200,
-    body: { ...goal, target: 'twenty' },
-  }), false);
+  assert.equal(
+    validateApiResponse({
+      method: 'GET',
+      routePath: '/:userId/:goalId',
+      baseUrl: '/api/goals',
+      statusCode: 200,
+      body: { ...goal, target: 'twenty' },
+    }),
+    false
+  );
 });

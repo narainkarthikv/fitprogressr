@@ -7,6 +7,9 @@ const jwt = require('jsonwebtoken');
 process.env.JWT_SECRET = 'route-test-secret';
 
 const WorkoutSession = require('../models/workoutSession.model');
+const Exercise = require('../models/exercise.model');
+const Goal = require('../models/goal.model');
+const User = require('../models/user.model');
 const achievementService = require('../services/achievementService');
 const workoutSessionsRouter = require('../routes/workoutSessions');
 const { validateApiResponse } = require('../utils/responseSchemas');
@@ -15,6 +18,9 @@ test('workout session CRUD validates input, scopes access to the user, and retur
   const originalCreate = WorkoutSession.create;
   const originalEvaluateAchievements = achievementService.evaluateAchievements;
   const originalFind = WorkoutSession.find;
+  const originalExerciseFindOne = Exercise.findOne;
+  const originalGoalFind = Goal.find;
+  const originalUserFindByIdAndUpdate = User.findByIdAndUpdate;
   const originalFindOne = WorkoutSession.findOne;
   const originalFindOneAndUpdate = WorkoutSession.findOneAndUpdate;
   const originalFindOneAndDelete = WorkoutSession.findOneAndDelete;
@@ -26,7 +32,9 @@ test('workout session CRUD validates input, scopes access to the user, and retur
     _id: sessionId,
     userId,
     date: new Date('2026-10-25T00:00:00.000Z'),
-    exercises: [{ _id: '507f1f77bcf86cd799439013', name: 'Running', duration: 30, completed: false }],
+    exercises: [
+      { _id: '507f1f77bcf86cd799439013', name: 'Running', duration: 30, completed: false },
+    ],
     createdAt: new Date('2026-10-25T00:00:00.000Z'),
     updatedAt: new Date('2026-10-25T00:00:00.000Z'),
   };
@@ -40,12 +48,32 @@ test('workout session CRUD validates input, scopes access to the user, and retur
 
   WorkoutSession.create = async (data) => {
     createCalls++;
-    return { ...session, ...data, _id: sessionId };
+    return {
+      ...session,
+      ...data,
+      _id: sessionId,
+      exercises: data.exercises.map((exercise) => ({
+        ...exercise,
+        _id: session.exercises[0]._id,
+      })),
+    };
   };
 
   WorkoutSession.find = () => ({
     sort: async () => [session],
+    select() {
+      return this;
+    },
+    lean: async () => [session],
   });
+  Exercise.findOne = () => ({
+    select() {
+      return this;
+    },
+    lean: async () => null,
+  });
+  Goal.find = async () => [];
+  User.findByIdAndUpdate = async () => ({ matchedCount: 1 });
 
   WorkoutSession.findOne = async (query) => {
     findOneQuery = query;
@@ -54,7 +82,15 @@ test('workout session CRUD validates input, scopes access to the user, and retur
 
   WorkoutSession.findOneAndUpdate = async (query, update, options) => {
     updateQuery = { query, update, options };
-    return { ...session, exercises: update.$set.exercises || session.exercises };
+    return {
+      ...session,
+      exercises: update.$set.exercises
+        ? update.$set.exercises.map((exercise) => ({
+            ...exercise,
+            _id: session.exercises[0]._id,
+          }))
+        : session.exercises,
+    };
   };
 
   WorkoutSession.findOneAndDelete = async (query) => {
@@ -68,13 +104,15 @@ test('workout session CRUD validates input, scopes access to the user, and retur
   app.use((req, res, next) => {
     const sendJson = res.json.bind(res);
     res.json = (body) => {
-      if (!validateApiResponse({
-        method: req.method,
-        routePath: req.route?.path,
-        baseUrl: req.baseUrl || '',
-        statusCode: res.statusCode,
-        body,
-      })) {
+      if (
+        !validateApiResponse({
+          method: req.method,
+          routePath: req.route?.path,
+          baseUrl: req.baseUrl || '',
+          statusCode: res.statusCode,
+          body,
+        })
+      ) {
         res.statusCode = 500;
         return sendJson({ error: 'Internal server error' });
       }
@@ -120,24 +158,18 @@ test('workout session CRUD validates input, scopes access to the user, and retur
     assert.equal(created.body.exercises[0].name, 'Running');
     assert.equal(created.body.exercises[0].completed, false);
 
-    const listed = await request(app)
-      .get('/api/workout-sessions')
-      .set(auth);
+    const listed = await request(app).get('/api/workout-sessions').set(auth);
 
     assert.equal(listed.status, 200);
     assert.equal(listed.body.length, 1);
 
-    const fetched = await request(app)
-      .get(`/api/workout-sessions/${sessionId}`)
-      .set(auth);
+    const fetched = await request(app).get(`/api/workout-sessions/${sessionId}`).set(auth);
 
     assert.equal(fetched.status, 200);
     assert.equal(findOneQuery.userId, userId);
     assert.equal(findOneQuery._id, sessionId);
 
-    const invalidId = await request(app)
-      .get('/api/workout-sessions/not-an-id')
-      .set(auth);
+    const invalidId = await request(app).get('/api/workout-sessions/not-an-id').set(auth);
 
     assert.equal(invalidId.status, 400);
 
@@ -151,9 +183,7 @@ test('workout session CRUD validates input, scopes access to the user, and retur
     assert.equal(updateQuery.query.userId, userId);
     assert.equal(updateQuery.options.runValidators, true);
 
-    const deleted = await request(app)
-      .delete(`/api/workout-sessions/${sessionId}`)
-      .set(auth);
+    const deleted = await request(app).delete(`/api/workout-sessions/${sessionId}`).set(auth);
 
     assert.equal(deleted.status, 204);
     assert.equal(deleteQuery.userId, userId);
@@ -162,6 +192,9 @@ test('workout session CRUD validates input, scopes access to the user, and retur
     achievementService.evaluateAchievements = originalEvaluateAchievements;
     WorkoutSession.create = originalCreate;
     WorkoutSession.find = originalFind;
+    Exercise.findOne = originalExerciseFindOne;
+    Goal.find = originalGoalFind;
+    User.findByIdAndUpdate = originalUserFindByIdAndUpdate;
     WorkoutSession.findOne = originalFindOne;
     WorkoutSession.findOneAndUpdate = originalFindOneAndUpdate;
     WorkoutSession.findOneAndDelete = originalFindOneAndDelete;

@@ -3,14 +3,16 @@ const assert = require('node:assert/strict');
 
 const Exercise = require('../models/exercise.model');
 const Goal = require('../models/goal.model');
+const WorkoutSession = require('../models/workoutSession.model');
 
-const {
-  calculateGoalProgress,
-  updateUserGoalProgress,
-} = require('../services/goalProgress');
+const { calculateGoalProgress, updateUserGoalProgress } = require('../services/goalProgress');
 
 const originalFindOne = Exercise.findOne;
 const originalGoalFind = Goal.find;
+const originalSessionFind = WorkoutSession.find;
+const stubNoWorkoutSessions = () => {
+  WorkoutSession.find = () => ({ lean: async () => [] });
+};
 
 const createExerciseData = (Exercises) => ({
   Exercises,
@@ -25,13 +27,15 @@ const createGoal = (goalType, target = 100) => ({
 });
 
 test('calculates workout progress using distinct completed activity days', async () => {
+  stubNoWorkoutSessions();
   Exercise.findOne = () => ({
-    lean: async () => createExerciseData([
-      { date: new Date('2026-10-10T08:00:00Z'), exerciseCheck: true, duration: 20 },
-      { date: new Date('2026-10-10T09:00:00Z'), exerciseCheck: true, duration: 30 },
-      { date: new Date('2026-10-11T08:00:00Z'), exerciseCheck: true, duration: 25 },
-      { date: new Date('2026-10-12T08:00:00Z'), exerciseCheck: false, duration: 40 },
-    ]),
+    lean: async () =>
+      createExerciseData([
+        { date: new Date('2026-10-10T08:00:00Z'), exerciseCheck: true, duration: 20 },
+        { date: new Date('2026-10-10T09:00:00Z'), exerciseCheck: true, duration: 30 },
+        { date: new Date('2026-10-11T08:00:00Z'), exerciseCheck: true, duration: 25 },
+        { date: new Date('2026-10-12T08:00:00Z'), exerciseCheck: false, duration: 40 },
+      ]),
   });
 
   try {
@@ -39,29 +43,32 @@ test('calculates workout progress using distinct completed activity days', async
     assert.equal(progress, 2);
   } finally {
     Exercise.findOne = originalFindOne;
+    WorkoutSession.find = originalSessionFind;
   }
 });
 
 test('calculates completed exercise duration and caps progress at target', async () => {
+  stubNoWorkoutSessions();
   Exercise.findOne = () => ({
-    lean: async () => createExerciseData([
-      { date: new Date('2026-10-10T08:00:00Z'), exerciseCheck: true, duration: 45 },
-      { date: new Date('2026-10-11T08:00:00Z'), exerciseCheck: true, duration: 60 },
-      { date: new Date('2026-10-12T08:00:00Z'), exerciseCheck: false, duration: 90 },
-    ]),
+    lean: async () =>
+      createExerciseData([
+        { date: new Date('2026-10-10T08:00:00Z'), exerciseCheck: true, duration: 45 },
+        { date: new Date('2026-10-11T08:00:00Z'), exerciseCheck: true, duration: 60 },
+        { date: new Date('2026-10-12T08:00:00Z'), exerciseCheck: false, duration: 90 },
+      ]),
   });
 
   try {
-    const progress = await calculateGoalProgress(
-      createGoal('exercise_duration', 100)
-    );
+    const progress = await calculateGoalProgress(createGoal('exercise_duration', 100));
     assert.equal(progress, 100);
   } finally {
     Exercise.findOne = originalFindOne;
+    WorkoutSession.find = originalSessionFind;
   }
 });
 
 test('returns zero when no exercise data exists', async () => {
+  stubNoWorkoutSessions();
   Exercise.findOne = () => ({
     lean: async () => null,
   });
@@ -71,10 +78,12 @@ test('returns zero when no exercise data exists', async () => {
     assert.equal(progress, 0);
   } finally {
     Exercise.findOne = originalFindOne;
+    WorkoutSession.find = originalSessionFind;
   }
 });
 
 test('updates only goals whose calculated progress has changed', async () => {
+  stubNoWorkoutSessions();
   let savedCount = 0;
 
   const goals = [
@@ -88,9 +97,10 @@ test('updates only goals whose calculated progress has changed', async () => {
   ];
 
   Exercise.findOne = () => ({
-    lean: async () => createExerciseData([
-      { date: new Date(), exerciseCheck: true, duration: 30 },
-    ]),
+    lean: async () =>
+      createExerciseData([
+        { date: new Date('2026-10-15T08:00:00Z'), exerciseCheck: true, duration: 30 },
+      ]),
   });
 
   Goal.find = async () => goals;
@@ -105,5 +115,6 @@ test('updates only goals whose calculated progress has changed', async () => {
   } finally {
     Exercise.findOne = originalFindOne;
     Goal.find = originalGoalFind;
+    WorkoutSession.find = originalSessionFind;
   }
 });

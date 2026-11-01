@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link as RouterLink } from 'react-router-dom';
-import axios from 'axios';
 import {
   AppBar,
   Toolbar,
@@ -12,6 +11,7 @@ import {
   Drawer,
   List,
   ListItem,
+  ListItemButton,
   Typography,
   useMediaQuery,
   useTheme,
@@ -19,13 +19,14 @@ import {
 import {
   FitnessCenter as FaDumbbell,
   Menu as MenuIcon,
+  Close as CloseIcon,
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
 } from '@mui/icons-material';
 import NotificationDropdown from './NotificationDropdown';
 import UserDropdown from './UserDropdown';
 import EditProfileModal from '../profile/EditProfileModal';
-import { API_BASE_URL, getAccessToken } from '../../utils/api';
+import { useGetProfileQuery } from '../../services/api';
 
 const NavBar = ({
   user,
@@ -37,47 +38,11 @@ const NavBar = ({
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [userDetails, setUserDetails] = useState({ username: '', email: '' });
-  const [userDetailsLoading, setUserDetailsLoading] = useState(true);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const backendURL = API_BASE_URL;
-
-  useEffect(() => {
-    let isCurrent = true;
-
-    const fetchUserDetails = async () => {
-      try {
-        const accessToken = getAccessToken();
-        const response = await axios.get(`${backendURL}/api/user/${user}`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        if (isCurrent) {
-          setUserDetails({
-            username: response.data.username,
-            email: response.data.email,
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching user details:', err);
-      } finally {
-        if (isCurrent) setUserDetailsLoading(false);
-      }
-    };
-
-    if (user) {
-      setUserDetailsLoading(true);
-      fetchUserDetails();
-    } else {
-      setUserDetailsLoading(false);
-    }
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [user, backendURL]);
+  const { data: userDetails = {}, isLoading: userDetailsLoading } = useGetProfileQuery(user, {
+    skip: !user,
+  });
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -88,47 +53,63 @@ const NavBar = ({
     setMobileOpen(false);
   };
 
-  const handleProfileUpdated = (updatedData) => {
-    setUserDetails((prev) => ({
-      ...prev,
-      username: updatedData.username,
-      email: updatedData.email,
-    }));
-  };
-
   const drawer = (
-    <Box sx={{ width: 250, p: 2 }}>
-      <List>
-        <ListItem>
-          <Tooltip title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-            <IconButton
-              aria-label={themeMode === 'dark' ? 'switch to light mode' : 'switch to dark mode'}
-              onClick={onToggleTheme}
-              sx={{
-                color: 'text.secondary',
-                '&:hover': { color: 'primary.main' },
-                '&:focus-visible': {
-                  outline: '2px solid',
-                  outlineColor: 'primary.light',
-                  outlineOffset: 2,
-                },
-              }}
-            >
-              {themeMode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-            </IconButton>
-          </Tooltip>
+    <Box sx={{ width: 'min(88vw, 340px)', p: 2, pt: 'max(16px, env(safe-area-inset-top))' }}>
+      <Typography variant="overline" color="text.secondary" sx={{ px: 1.5 }}>
+        ACCOUNT
+      </Typography>
+      <List disablePadding sx={{ mt: 0.5 }}>
+        <ListItem disablePadding sx={{ px: 1.5, py: 1.25, gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              display: 'grid',
+              placeItems: 'center',
+              borderRadius: '50%',
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              fontWeight: 700,
+            }}
+          >
+            {userDetails.username?.charAt(0)?.toUpperCase() || 'A'}
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography fontWeight={650} noWrap>
+              {userDetails.username || 'Your profile'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {userDetails.email}
+            </Typography>
+          </Box>
         </ListItem>
-        <ListItem>
-          <NotificationDropdown
-            notifications={notifications}
-            toggleNotificationReadStatus={toggleNotificationReadStatus}
-          />
+        <ListItem disablePadding>
+          <ListItemButton onClick={handleEditProfileClick} sx={{ minHeight: 46, borderRadius: 2 }}>
+            <Typography variant="body2">Edit profile</Typography>
+          </ListItemButton>
         </ListItem>
-        <ListItem>
-          <UserDropdown
-            handleLogout={handleLogout}
-            onEditProfileClick={handleEditProfileClick}
-          />
+        <ListItem disablePadding>
+          <ListItemButton onClick={onToggleTheme} sx={{ minHeight: 46, borderRadius: 2, gap: 1.5 }}>
+            {themeMode === 'dark' ? (
+              <LightModeIcon color="primary" />
+            ) : (
+              <DarkModeIcon color="primary" />
+            )}
+            <Typography variant="body2">
+              Use {themeMode === 'dark' ? 'light' : 'dark'} appearance
+            </Typography>
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={() => {
+              setMobileOpen(false);
+              handleLogout();
+            }}
+            sx={{ minHeight: 46, borderRadius: 2, color: 'error.main' }}
+          >
+            <Typography variant="body2">Sign out</Typography>
+          </ListItemButton>
         </ListItem>
       </List>
     </Box>
@@ -137,8 +118,11 @@ const NavBar = ({
   return (
     <>
       <AppBar position="sticky" elevation={0} sx={{ borderRadius: 0 }}>
-        <Container maxWidth={false} sx={{ px: { xs: 2, md: 3, xl: 4 } }}>
-          <Toolbar disableGutters sx={{ justifyContent: 'space-between', minHeight: 72 }}>
+        <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, xl: 4 } }}>
+          <Toolbar
+            disableGutters
+            sx={{ justifyContent: 'space-between', minHeight: { xs: 64, sm: 68 } }}
+          >
             {/* Logo */}
             <Box
               component={RouterLink}
@@ -146,11 +130,11 @@ const NavBar = ({
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 1,
+                gap: 1.25,
                 textDecoration: 'none',
                 color: 'inherit',
                 fontWeight: 700,
-                fontSize: '1.125rem',
+                fontSize: { xs: '1rem', sm: '1.1rem' },
                 letterSpacing: '-0.04em',
                 '&:hover': {
                   opacity: 0.8,
@@ -159,8 +143,8 @@ const NavBar = ({
             >
               <Box
                 sx={{
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   display: 'grid',
                   placeItems: 'center',
                   borderRadius: 2.5,
@@ -185,7 +169,7 @@ const NavBar = ({
 
             {/* Desktop Navigation */}
             {!isMobile && (
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <Tooltip
                   title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
@@ -207,13 +191,17 @@ const NavBar = ({
                     {themeMode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
                   </IconButton>
                 </Tooltip>
-                <NotificationDropdown
-                  notifications={notifications}
-                  toggleNotificationReadStatus={toggleNotificationReadStatus}
-                />
+                {notifications.length > 0 && (
+                  <NotificationDropdown
+                    notifications={notifications}
+                    toggleNotificationReadStatus={toggleNotificationReadStatus}
+                  />
+                )}
                 <UserDropdown
                   handleLogout={handleLogout}
                   onEditProfileClick={handleEditProfileClick}
+                  username={userDetails.username}
+                  email={userDetails.email}
                 />
               </Box>
             )}
@@ -222,10 +210,19 @@ const NavBar = ({
             {isMobile && (
               <IconButton
                 color="inherit"
-                aria-label="toggle navigation"
+                aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
+                aria-expanded={mobileOpen}
+                aria-controls="account-navigation-drawer"
                 onClick={handleDrawerToggle}
+                sx={{
+                  width: 44,
+                  height: 44,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2.5,
+                }}
               >
-                <MenuIcon />
+                {mobileOpen ? <CloseIcon /> : <MenuIcon />}
               </IconButton>
             )}
           </Toolbar>
@@ -235,12 +232,17 @@ const NavBar = ({
       {/* Mobile Drawer */}
       {isMobile && (
         <Drawer
+          id="account-navigation-drawer"
           anchor="right"
           open={mobileOpen}
           onClose={handleDrawerToggle}
           PaperProps={{
             sx: {
               backgroundColor: 'background.paper',
+              borderLeft: '1px solid',
+              borderColor: 'divider',
+              borderRadius: '20px 0 0 20px',
+              maxWidth: '100vw',
             },
           }}
         >
@@ -256,7 +258,6 @@ const NavBar = ({
         currentUsername={userDetails.username}
         currentEmail={userDetails.email}
         profileLoading={userDetailsLoading}
-        onProfileUpdated={handleProfileUpdated}
       />
     </>
   );

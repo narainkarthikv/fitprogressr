@@ -2,15 +2,13 @@ import { Component, lazy, Suspense, useState, useEffect, useCallback } from 'rea
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { Box } from '@mui/material';
+import { useDispatch } from 'react-redux';
 import NavBar from './components/Navbar/NavBar';
-import {
-  USER_ID_KEY,
-  clearAuthStorage,
-  getAccessToken,
-} from './utils/api';
+import { api } from './services/api';
+import { USER_ID_KEY, clearAuthStorage, getAccessToken } from './utils/api';
 
-const Home = lazy(() => import('./pages/Home'));
-const DashBoard = lazy(() => import('./pages/Dashboard'));
+const TrainingDashboardPage = lazy(() => import('./pages/TrainingDashboardPage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 class RouteErrorBoundary extends Component {
   state = { hasError: false };
@@ -21,7 +19,11 @@ class RouteErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
-      return <Box role="alert" sx={{ p: 4, textAlign: 'center' }}>This page hit a problem. Refresh to try again.</Box>;
+      return (
+        <Box role="alert" sx={{ p: 4, textAlign: 'center' }}>
+          This page hit a problem. Refresh to try again.
+        </Box>
+      );
     }
     return this.props.children;
   }
@@ -43,6 +45,7 @@ const App = ({ themeMode, onToggleTheme }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userID, setUserID] = useState('');
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   // Check for existing session on mount
   useEffect(() => {
@@ -58,8 +61,9 @@ const App = ({ themeMode, onToggleTheme }) => {
     setIsLoggedIn(false);
     setUserID('');
     clearAuthStorage();
+    dispatch(api.util.resetApiState());
     navigate('/');
-  }, [navigate]);
+  }, [dispatch, navigate]);
 
   useEffect(() => {
     const logoutListener = () => {
@@ -94,14 +98,20 @@ const App = ({ themeMode, onToggleTheme }) => {
             />
           )}
 
-          <Suspense fallback={<Box role="status" sx={{ p: 4, textAlign: 'center' }}>Loading…</Box>}>
+          <Suspense
+            fallback={
+              <Box role="status" sx={{ p: 4, textAlign: 'center' }}>
+                Loading…
+              </Box>
+            }
+          >
             <Routes>
               {/* Landing Page - Public route */}
               <Route
                 path="/"
                 element={
                   !isLoggedIn ? (
-                    <DashBoard isLoggedIn={false} onAuthSuccess={handleAuthSuccess} />
+                    <LandingPage isLoggedIn={false} onAuthSuccess={handleAuthSuccess} />
                   ) : (
                     <Navigate to="/dashboard" replace />
                   )
@@ -113,7 +123,7 @@ const App = ({ themeMode, onToggleTheme }) => {
                 path="/dashboard"
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
-                    <Home user={userID} />
+                    <TrainingDashboardPage user={userID} />
                   </PrivateRoute>
                 }
               />

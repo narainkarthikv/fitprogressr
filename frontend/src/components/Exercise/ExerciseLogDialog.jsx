@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useDispatch } from 'react-redux';
 import {
   Button,
   Checkbox,
@@ -15,18 +14,18 @@ import {
   Alert,
 } from '@mui/material';
 import { Add, Close } from '@mui/icons-material';
-import { addExercise } from '../../slices/exercisesSlice';
-import { addExercise as addTrackedActivity } from '../../slices/heatMapSlice';
+import { useAddHeatmapActivityMutation, useCreateLegacyExerciseMutation } from '../../services/api';
 
 const initialExercise = { description: '', duration: '', exerciseCheck: false };
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
-const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
-  const dispatch = useDispatch();
+const ExerciseLogDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
   const [exercise, setExercise] = useState(initialExercise);
   const [activity, setActivity] = useState({ date: getTodayDate(), count: '' });
-  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(false);
+  const [createLegacyExercise, { isLoading: isSavingExercise }] = useCreateLegacyExerciseMutation();
+  const [addHeatmapActivity, { isLoading: isSavingActivity }] = useAddHeatmapActivityMutation();
+  const submitting = isSavingExercise || isSavingActivity;
 
   const handleClose = () => {
     if (submitting) return;
@@ -42,19 +41,18 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
       const count = Number(activity.count);
       if (!activity.date || !Number.isInteger(count) || count <= 0) return;
 
-      setSubmitting(true);
       setSubmitError(false);
-      const succeeded = await dispatch(
-        addTrackedActivity(userID, {
-          date: new Date(`${activity.date}T12:00:00`).toISOString(),
-          count,
-        })
-      );
-      setSubmitting(false);
-      if (succeeded) {
+      try {
+        await addHeatmapActivity({
+          userId: userID,
+          body: {
+            date: new Date(`${activity.date}T12:00:00`).toISOString(),
+            count,
+          },
+        }).unwrap();
         setActivity({ date: getTodayDate(), count: '' });
         onClose();
-      } else {
+      } catch {
         setSubmitError(true);
       }
       return;
@@ -63,21 +61,19 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
     const duration = Number(exercise.duration);
     if (!exercise.description.trim() || !Number.isFinite(duration) || duration <= 0) return;
 
-    setSubmitting(true);
     setSubmitError(false);
-    const succeeded = await dispatch(
-      addExercise(userID, {
-        description: exercise.description.trim(),
-        duration,
-        exerciseCheck: exercise.exerciseCheck,
-      })
-    );
-    setSubmitting(false);
-
-    if (succeeded) {
+    try {
+      await createLegacyExercise({
+        userId: userID,
+        body: {
+          description: exercise.description.trim(),
+          duration,
+          exerciseCheck: exercise.exerciseCheck,
+        },
+      }).unwrap();
       setExercise(initialExercise);
       onClose();
-    } else {
+    } catch {
       setSubmitError(true);
     }
   };
@@ -91,7 +87,13 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <Stack component="form" id="exercise-entry-form" spacing={2.5} sx={{ pt: 1 }} onSubmit={handleSubmit}>
+        <Stack
+          component="form"
+          id="exercise-entry-form"
+          spacing={2.5}
+          sx={{ pt: 1 }}
+          onSubmit={handleSubmit}
+        >
           {submitError && (
             <Alert severity="error">
               {mode === 'activity'
@@ -107,7 +109,9 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
                 label="Activity date"
                 type="date"
                 value={activity.date}
-                onChange={(event) => setActivity((current) => ({ ...current, date: event.target.value }))}
+                onChange={(event) =>
+                  setActivity((current) => ({ ...current, date: event.target.value }))
+                }
                 InputLabelProps={{ shrink: true }}
               />
               <TextField
@@ -116,7 +120,9 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
                 label="Exercises completed"
                 type="number"
                 value={activity.count}
-                onChange={(event) => setActivity((current) => ({ ...current, count: event.target.value }))}
+                onChange={(event) =>
+                  setActivity((current) => ({ ...current, count: event.target.value }))
+                }
                 inputProps={{ min: 1, step: 1 }}
                 helperText="Sets the activity level shown for this day."
               />
@@ -129,7 +135,9 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
                 label="Exercise name"
                 name="description"
                 value={exercise.description}
-                onChange={(event) => setExercise((current) => ({ ...current, description: event.target.value }))}
+                onChange={(event) =>
+                  setExercise((current) => ({ ...current, description: event.target.value }))
+                }
                 inputProps={{ maxLength: 500 }}
               />
               <TextField
@@ -139,7 +147,9 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
                 name="duration"
                 type="number"
                 value={exercise.duration}
-                onChange={(event) => setExercise((current) => ({ ...current, duration: event.target.value }))}
+                onChange={(event) =>
+                  setExercise((current) => ({ ...current, duration: event.target.value }))
+                }
                 inputProps={{ min: 1, step: 1 }}
                 InputProps={{ endAdornment: <InputAdornment position="end">min</InputAdornment> }}
               />
@@ -147,7 +157,12 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
                 control={
                   <Checkbox
                     checked={exercise.exerciseCheck}
-                    onChange={(event) => setExercise((current) => ({ ...current, exerciseCheck: event.target.checked }))}
+                    onChange={(event) =>
+                      setExercise((current) => ({
+                        ...current,
+                        exerciseCheck: event.target.checked,
+                      }))
+                    }
                   />
                 }
                 label="Mark as completed"
@@ -167,7 +182,9 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
           disabled={
             submitting ||
             (mode === 'activity'
-              ? !activity.date || !Number.isInteger(Number(activity.count)) || Number(activity.count) <= 0
+              ? !activity.date ||
+                !Number.isInteger(Number(activity.count)) ||
+                Number(activity.count) <= 0
               : !exercise.description.trim() || Number(exercise.duration) <= 0)
           }
           startIcon={<Add />}
@@ -179,4 +196,4 @@ const ExerciseEntryDialog = ({ open, onClose, userID, mode = 'exercise' }) => {
   );
 };
 
-export default ExerciseEntryDialog;
+export default ExerciseLogDialog;

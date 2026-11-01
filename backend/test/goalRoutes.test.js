@@ -9,11 +9,13 @@ process.env.JWT_SECRET = 'goal-route-test-secret';
 
 const Goal = require('../models/goal.model');
 const Exercise = require('../models/exercise.model');
+const WorkoutSession = require('../models/workoutSession.model');
 const goalRouter = require('../routes/goals');
 const { validateApiResponse } = require('../utils/responseSchemas');
 
 test('goal routes support CRUD operations and enforce ownership', async () => {
   const originalExerciseFindOne = Exercise.findOne;
+  const originalSessionFind = WorkoutSession.find;
   const originalCreate = Goal.create;
   const originalFind = Goal.find;
   const originalFindById = Goal.findById;
@@ -42,6 +44,7 @@ test('goal routes support CRUD operations and enforce ownership', async () => {
   Exercise.findOne = () => ({
     lean: async () => ({ Exercises: [] }),
   });
+  WorkoutSession.find = () => ({ lean: async () => [] });
 
   Goal.create = async (data) => {
     storedGoal = createGoalRecord(data);
@@ -56,9 +59,7 @@ test('goal routes support CRUD operations and enforce ownership', async () => {
     return results;
   };
 
-  Goal.findById = async (id) => (
-    storedGoal && storedGoal._id === String(id) ? storedGoal : null
-  );
+  Goal.findById = async (id) => (storedGoal && storedGoal._id === String(id) ? storedGoal : null);
 
   Goal.findOne = async (filter) => {
     if (
@@ -105,13 +106,15 @@ test('goal routes support CRUD operations and enforce ownership', async () => {
     const sendJson = res.json.bind(res);
 
     res.json = (body) => {
-      if (!validateApiResponse({
-        method: req.method,
-        routePath: req.route?.path,
-        baseUrl: req.baseUrl || '',
-        statusCode: res.statusCode,
-        body,
-      })) {
+      if (
+        !validateApiResponse({
+          method: req.method,
+          routePath: req.route?.path,
+          baseUrl: req.baseUrl || '',
+          statusCode: res.statusCode,
+          body,
+        })
+      ) {
         res.statusCode = 500;
         return sendJson({ error: 'Internal server error' });
       }
@@ -132,9 +135,7 @@ test('goal routes support CRUD operations and enforce ownership', async () => {
   };
 
   try {
-    const unauthorized = await request(app)
-      .post(`/api/goals/${userId}`)
-      .send(validPayload);
+    const unauthorized = await request(app).post(`/api/goals/${userId}`).send(validPayload);
 
     assert.equal(unauthorized.status, 401);
 
@@ -206,6 +207,7 @@ test('goal routes support CRUD operations and enforce ownership', async () => {
     assert.equal(missing.status, 404);
   } finally {
     Exercise.findOne = originalExerciseFindOne;
+    WorkoutSession.find = originalSessionFind;
     Goal.create = originalCreate;
     Goal.find = originalFind;
     Goal.findById = originalFindById;
