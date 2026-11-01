@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Exercise = require('../models/exercise.model');
+const { updateUserGoalProgress } = require('../services/goalProgress');
 const verifyToken = require('../middleware/jwtAuth.js');
 const { ensureAdmin, ensureSelf } = require('../middleware/accessControl');
 const {
@@ -71,10 +72,12 @@ router.post('/:userId/add', verifyToken, ensureSelf('userId'), async (req, res) 
       description: sanitizedDescription,
       duration: parsedDuration,
       exerciseCheck,
+      date: new Date(),
     };
 
     exercisesData.Exercises.push(exerciseEntry);
     await exercisesData.save();
+    await updateUserGoalProgress(userId);
     res.status(201).json({
       message: 'Exercise added successfully',
       newExercise: exercisesData.Exercises[exercisesData.Exercises.length - 1],
@@ -103,6 +106,7 @@ router.delete(
       }
       exerciseToRemove.deleteOne();
       await exerciseData.save();
+      await updateUserGoalProgress(userId);
       return res.status(204).end();
     } catch (error) {
       console.error('Error deleting Exercise:', error);

@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 process.env.JWT_SECRET = 'route-test-secret';
 const User = require('../models/user.model');
 const Exercise = require('../models/exercise.model');
+const Goal = require('../models/goal.model');
 const RateLimit = require('../models/rateLimit.model');
 const userRouter = require('../routes/user');
 const exerciseRouter = require('../routes/exercises');
@@ -18,6 +19,7 @@ test('user routes validate before queries, sanitize fields, and return safe cont
   const originalUserSave = User.prototype.save;
   const originalExerciseSave = Exercise.prototype.save;
   const originalExerciseFindOne = Exercise.findOne;
+  const originalGoalFind = Goal.find;
   const originalRateLimitFindOneAndUpdate = RateLimit.findOneAndUpdate;
   let userQueries = 0;
   let createExerciseSaveCount = 0;
@@ -36,6 +38,7 @@ test('user routes validate before queries, sanitize fields, and return safe cont
     createExerciseSaveCount += 1;
     return this;
   };
+  Goal.find = async () => [];
   Exercise.findOne = async () => {
     exerciseQueries += 1;
     return {
@@ -119,6 +122,7 @@ test('user routes validate before queries, sanitize fields, and return safe cont
     User.prototype.save = originalUserSave;
     Exercise.prototype.save = originalExerciseSave;
     Exercise.findOne = originalExerciseFindOne;
+    Goal.find = originalGoalFind;
     RateLimit.findOneAndUpdate = originalRateLimitFindOneAndUpdate;
   }
 });

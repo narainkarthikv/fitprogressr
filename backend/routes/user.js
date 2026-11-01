@@ -1,4 +1,5 @@
 const express = require('express');
+const { evaluateAchievements } = require('../services/achievementService');
 const router = express.Router();
 const User = require('../models/user.model');
 const Exercise = require('../models/exercise.model');
@@ -193,6 +194,13 @@ async function handlePasswordValid(user, res) {
       user.totalDays = newDayCheck.filter(Boolean).length;
 
       await user.save();
+    }
+
+    try {
+      await evaluateAchievements(user._id);
+    } catch (achievementError) {
+      // A gamification failure must not prevent a successful login.
+      console.error('Achievement evaluation failed:', achievementError.message);
     }
 
     const { accessToken, refreshToken } = createAuthTokens(user);

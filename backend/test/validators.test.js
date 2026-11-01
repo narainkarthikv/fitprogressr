@@ -141,3 +141,41 @@ test('rejects invalid exercise fields and accepts valid month names and numbers'
   assert.equal(validateMonth('10'), null);
   assert.match(validateMonth('13'), /month/);
 });
+
+test('validates Goal API response contracts', () => {
+  const goal = {
+    _id: '507f1f77bcf86cd799439011',
+    userId: '507f1f77bcf86cd799439012',
+    goalType: 'workout_count',
+    target: 20,
+    progress: 5,
+    startDate: '2026-10-01T00:00:00.000Z',
+    endDate: '2026-10-31T23:59:59.999Z',
+    createdAt: '2026-10-01T00:00:00.000Z',
+    updatedAt: '2026-10-02T00:00:00.000Z',
+  };
+
+  assert.equal(validateApiResponse({
+    method: 'POST',
+    routePath: '/:userId',
+    baseUrl: '/api/goals',
+    statusCode: 201,
+    body: { message: 'Goal created successfully', goal },
+  }), true);
+
+  assert.equal(validateApiResponse({
+    method: 'GET',
+    routePath: '/:userId',
+    baseUrl: '/api/goals',
+    statusCode: 200,
+    body: [goal],
+  }), true);
+
+  assert.equal(validateApiResponse({
+    method: 'GET',
+    routePath: '/:userId/:goalId',
+    baseUrl: '/api/goals',
+    statusCode: 200,
+    body: { ...goal, target: 'twenty' },
+  }), false);
+});
