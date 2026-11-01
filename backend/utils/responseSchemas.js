@@ -29,6 +29,7 @@ const exerciseSchema = {
     description: { type: 'string' },
     duration: { type: 'number', exclusiveMinimum: 0 },
     exerciseCheck: { type: 'boolean' },
+    date: { type: 'string', format: 'date-time' },
   },
   additionalProperties: true,
 };
@@ -55,36 +56,22 @@ const exerciseDocumentSchema = {
   additionalProperties: true,
 };
 
-
-const workoutExerciseSchema = {
+const goalSchema = {
   type: 'object',
-  required: ['name', 'duration', 'completed'],
-  properties: {
-    _id: { type: 'string' },
-    name: { type: 'string' },
-    duration: { type: 'number', minimum: 0 },
-    completed: { type: 'boolean' },
-  },
-  additionalProperties: true,
-};
-
-const workoutSessionSchema = {
-  type: 'object',
-  required: ['_id', 'userId', 'date', 'exercises'],
+  required: ['_id', 'userId', 'goalType', 'target', 'progress', 'startDate', 'endDate'],
   properties: {
     _id: { type: 'string' },
     userId: { type: 'string' },
-    date: { type: 'string' },
-    exercises: {
-      type: 'array',
-      items: workoutExerciseSchema,
-    },
-    createdAt: { type: 'string' },
-    updatedAt: { type: 'string' },
+    goalType: { enum: ['workout_count', 'exercise_duration'] },
+    target: { type: 'number', exclusiveMinimum: 0 },
+    progress: { type: 'number', minimum: 0 },
+    startDate: { type: 'string', format: 'date-time' },
+    endDate: { type: 'string', format: 'date-time' },
+    createdAt: { type: 'string', format: 'date-time' },
+    updatedAt: { type: 'string', format: 'date-time' },
   },
   additionalProperties: true,
 };
-
 
 const messageSchema = {
   type: 'object',
@@ -106,6 +93,19 @@ const errorSchema = {
 };
 
 const routeSchemas = new Map([
+  ['POST /api/goals/:userId', {
+    ...messageSchema,
+    required: ['message', 'goal'],
+    properties: { ...messageSchema.properties, goal: goalSchema },
+  }],
+  ['GET /api/goals/:userId', { type: 'array', items: goalSchema }],
+  ['GET /api/goals/:userId/:goalId', goalSchema],
+  ['PUT /api/goals/:userId/:goalId', {
+    ...messageSchema,
+    required: ['message', 'goal'],
+    properties: { ...messageSchema.properties, goal: goalSchema },
+  }],
+
   ['GET /api/health/', {
     type: 'object', required: ['status', 'uptime', 'timestamp'],
     properties: { status: { type: 'string' }, uptime: { type: 'number' }, timestamp: { type: 'string' } },
