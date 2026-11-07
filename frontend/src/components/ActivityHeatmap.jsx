@@ -1,18 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Box, Paper, Stack, Typography, Skeleton, alpha, useTheme } from '@mui/material';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchMonthData } from '../slices/heatMapSlice';
+import { useGetHeatmapMonthQuery } from '../services/api';
 import HeatmapControls from './Heatmap/HeatmapControls';
 import DetailsModal from './Heatmap/DetailsModal';
 
-const HeatMap = ({ userID, onAddExercise }) => {
-  const dispatch = useDispatch();
+const ActivityHeatmap = ({ userID, onAddExercise }) => {
   const theme = useTheme();
-  const userMonthData = useSelector((state) => state.heatMap.userMonthData);
-  const status = useSelector((state) => state.heatMap.status);
-  const isLoading = status === 'idle' || status === 'loading';
-
-  const monthData = useMemo(() => userMonthData?.[userID] || [], [userMonthData, userID]);
 
   // Set the default month to the current month
   const [selectedMonth, setSelectedMonth] = useState(() =>
@@ -20,6 +13,12 @@ const HeatMap = ({ userID, onAddExercise }) => {
   );
   const [selectedValue, setSelectedValue] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const {
+    data: monthData = [],
+    isLoading,
+    isFetching,
+    error,
+  } = useGetHeatmapMonthQuery({ userId: userID, month: selectedMonth }, { skip: !userID });
 
   const months = Array.from({ length: 12 }, (_, index) =>
     new Date(0, index).toLocaleString('default', { month: 'long' })
@@ -47,12 +46,6 @@ const HeatMap = ({ userID, onAddExercise }) => {
       return { day, count: countsByDay.get(day) || 0 };
     });
   }, [calendarYear, monthData, months, selectedMonth]);
-
-  useEffect(() => {
-    if (userID) {
-      dispatch(fetchMonthData(userID, selectedMonth));
-    }
-  }, [dispatch, userID, selectedMonth]);
 
   const handleClick = (value) => {
     setSelectedValue(value);
@@ -132,6 +125,14 @@ const HeatMap = ({ userID, onAddExercise }) => {
             overflow: 'hidden',
           }}
         >
+          {isFetching && !isLoading && (
+            <Skeleton
+              animation="wave"
+              variant="rounded"
+              height={4}
+              sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1 }}
+            />
+          )}
           <Box
             role="group"
             aria-label={`${selectedMonth} ${calendarYear} activity`}
@@ -148,7 +149,13 @@ const HeatMap = ({ userID, onAddExercise }) => {
           >
             {weekdayLabels.map((day) =>
               isLoading ? (
-                <Skeleton key={`weekday-${day}`} variant="text" width="42%" sx={{ mx: 'auto' }} />
+                <Skeleton
+                  animation="wave"
+                  key={`weekday-${day}`}
+                  variant="text"
+                  width="42%"
+                  sx={{ mx: 'auto' }}
+                />
               ) : (
                 <Typography
                   key={day}
@@ -172,6 +179,7 @@ const HeatMap = ({ userID, onAddExercise }) => {
               Array.from({ length: 42 }, (_, index) => (
                 <Skeleton
                   key={`calendar-day-${index}`}
+                  animation="wave"
                   variant="rounded"
                   sx={{
                     width: '100%',
@@ -181,7 +189,7 @@ const HeatMap = ({ userID, onAddExercise }) => {
                   }}
                 />
               ))
-            ) : status === 'failed' ? (
+            ) : error ? (
               <Typography
                 role="alert"
                 variant="body2"
@@ -190,61 +198,67 @@ const HeatMap = ({ userID, onAddExercise }) => {
               >
                 Activity data could not be loaded.
               </Typography>
-            ) : calendarCells.map((cell, index) =>
-              cell ? (
-                <Box
-                  key={cell.day}
-                  component="button"
-                  type="button"
-                  aria-label={`${selectedMonth} ${cell.day}, ${cell.count} ${cell.count === 1 ? 'exercise' : 'exercises'}`}
-                  title={`${cell.count} ${cell.count === 1 ? 'exercise' : 'exercises'}`}
-                  onClick={() =>
-                    handleClick({
-                      date: `${calendarYear}-${String(months.indexOf(selectedMonth) + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`,
-                      count: cell.count,
-                    })
-                  }
-                  sx={{
-                    minWidth: 0,
-                    minHeight: 0,
-                    height: '100%',
-                    p: 0.5,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 0.25,
-                    border: '1px solid',
-                    borderColor: getCellBorderTone(cell.count),
-                    borderRadius: '10px',
-                    color: 'text.primary',
-                    fontWeight: cell.count > 0 ? 600 : 400,
-                    backgroundColor: getCellTone(cell.count),
-                    cursor: 'pointer',
-                    font: 'inherit',
-                    transition: 'transform 140ms ease, border-color 140ms ease, background-color 140ms ease',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      borderColor: 'primary.main',
-                    },
-                    '&:focus-visible': {
-                      outline: '2px solid',
-                      outlineColor: 'primary.main',
-                      outlineOffset: 2,
-                    },
-                  }}
-                >
-                  <Typography component="span" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, lineHeight: 1 }}>
-                    {cell.day}
-                  </Typography>
-                  {cell.count > 0 && (
-                    <Typography component="span" sx={{ fontSize: '0.7rem', lineHeight: 1 }}>
-                      {cell.count}
+            ) : (
+              calendarCells.map((cell, index) =>
+                cell ? (
+                  <Box
+                    key={cell.day}
+                    component="button"
+                    type="button"
+                    aria-label={`${selectedMonth} ${cell.day}, ${cell.count} ${cell.count === 1 ? 'exercise' : 'exercises'}`}
+                    title={`${cell.count} ${cell.count === 1 ? 'exercise' : 'exercises'}`}
+                    onClick={() =>
+                      handleClick({
+                        date: `${calendarYear}-${String(months.indexOf(selectedMonth) + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`,
+                        count: cell.count,
+                      })
+                    }
+                    sx={{
+                      minWidth: 0,
+                      minHeight: 0,
+                      height: '100%',
+                      p: 0.5,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 0.25,
+                      border: '1px solid',
+                      borderColor: getCellBorderTone(cell.count),
+                      borderRadius: '10px',
+                      color: 'text.primary',
+                      fontWeight: cell.count > 0 ? 600 : 400,
+                      backgroundColor: getCellTone(cell.count),
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      transition:
+                        'transform 140ms ease, border-color 140ms ease, background-color 140ms ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        borderColor: 'primary.main',
+                      },
+                      '&:focus-visible': {
+                        outline: '2px solid',
+                        outlineColor: 'primary.main',
+                        outlineOffset: 2,
+                      },
+                    }}
+                  >
+                    <Typography
+                      component="span"
+                      sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, lineHeight: 1 }}
+                    >
+                      {cell.day}
                     </Typography>
-                  )}
-                </Box>
-              ) : (
-                <Box key={`empty-${index}`} aria-hidden="true" />
+                    {cell.count > 0 && (
+                      <Typography component="span" sx={{ fontSize: '0.7rem', lineHeight: 1 }}>
+                        {cell.count}
+                      </Typography>
+                    )}
+                  </Box>
+                ) : (
+                  <Box key={`empty-${index}`} aria-hidden="true" />
+                )
               )
             )}
           </Box>
@@ -256,9 +270,8 @@ const HeatMap = ({ userID, onAddExercise }) => {
         handleClose={() => setShowModal(false)}
         selectedValue={selectedValue}
       />
-
     </Paper>
   );
 };
 
-export default HeatMap;
+export default ActivityHeatmap;

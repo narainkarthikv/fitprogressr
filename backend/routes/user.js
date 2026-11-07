@@ -1,4 +1,6 @@
 const express = require('express');
+const { evaluateAchievements } = require('../services/achievementService');
+const { updateUserActivityProgress } = require('../services/goalProgress');
 const router = express.Router();
 const User = require('../models/user.model');
 const Exercise = require('../models/exercise.model');
@@ -7,14 +9,14 @@ const jwt = require('jsonwebtoken');
 const verifyToken = require('../middleware/jwtAuth.js');
 const { ensureAdmin, ensureSelf } = require('../middleware/accessControl');
 const createRateLimit = require('../middleware/rateLimit');
-const { validateUserPayload, validateLoginPayload, validateProfilePayload } = require('../utils/validators');
+const {
+  validateUserPayload,
+  validateLoginPayload,
+  validateProfilePayload,
+} = require('../utils/validators');
 const { getApiErrorResponse } = require('../utils/apiErrors');
 const { sanitizePlainText } = require('../utils/sanitize');
-const {
-  isBcryptHash,
-  hashPassword,
-  sanitizeUser,
-} = require('../utils/helpers');
+const { isBcryptHash, hashPassword, sanitizeUser } = require('../utils/helpers');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -82,7 +84,9 @@ router.post('/add', authRateLimit, async (req, res) => {
 
     const normalizedUsername = username.trim();
     const normalizedEmail = email.trim().toLowerCase();
-    const existingUser = await User.findOne({ $or: [{ username: normalizedUsername }, { email: normalizedEmail }] });
+    const existingUser = await User.findOne({
+      $or: [{ username: normalizedUsername }, { email: normalizedEmail }],
+    });
     if (existingUser) return res.status(409).json({ error: 'Username or email already in use' });
 
     const hashedPassword = await hashPassword(password);
@@ -131,7 +135,9 @@ router.post('/login', authRateLimit, async (req, res) => {
     const validationError = validateLoginPayload({ email, password });
     if (validationError) return res.status(422).json({ error: validationError });
     const normalizedEmail = email.trim();
-    const user = await User.findOne({ email: new RegExp(`^${escapeRegExp(normalizedEmail)}$`, 'i') });
+    const user = await User.findOne({
+      email: new RegExp(`^${escapeRegExp(normalizedEmail)}$`, 'i'),
+    });
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -154,54 +160,21 @@ router.post('/login', authRateLimit, async (req, res) => {
 // Helper function to handle successful password verification
 async function handlePasswordValid(user, res) {
   try {
-    const today = new Date();
-    const todayIndex = today.getDay();
-
-    const lastDate = user.lastActiveDate ? new Date(user.lastActiveDate) : null;
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-
-    //check if the user has already logged in today
-    const isSameDay =
-      lastDate &&
-      lastDate.getDate() === today.getDate() &&
-      lastDate.getMonth() === today.getMonth() &&
-      lastDate.getFullYear() === today.getFullYear();
-
-    if (!isSameDay) {
-      //Was this user already active today? If yes, do nothing
-
-      //1- Mark today's day of the week as true
-      let newDayCheck = user.dayCheck || [false, false, false, false, false, false, false];
-      const isNewWeek = todayIndex === 0; //if sunday then start fresh
-      if (isNewWeek) {
-        newDayCheck = [false, false, false, false, false, false, false]; // Start fresh week
-      }
-      newDayCheck[todayIndex] = true;
-
-      //2-Compare last active day from the user's DB with yesterday to see if the streak continues
-      const isYesterday =
-        lastDate &&
-        lastDate.getDate() === yesterday.getDate() &&
-        lastDate.getMonth() === yesterday.getMonth() &&
-        lastDate.getFullYear() === yesterday.getFullYear();
-
-      user.streakCount = isYesterday ? user.streakCount + 1 : 1; //3- Update streak count
-      user.lastActiveDate = today;
-      user.dayCheck = newDayCheck;
-
-      user.totalDays = newDayCheck.filter(Boolean).length;
-
-      await user.save();
+    try {
+      await updateUserActivityProgress(user._id);
+      await evaluateAchievements(user._id);
+    } catch (progressError) {
+      console.error('Progress refresh failed during login:', progressError.message);
     }
 
-    const { accessToken, refreshToken } = createAuthTokens(user);
+    const currentUser = await User.findById(user._id);
+    const { accessToken, refreshToken } = createAuthTokens(currentUser);
 
     res.status(200).json({
       message: 'Login successful',
       accessToken,
       refreshToken,
-      user: sanitizeUser(user),
+      user: sanitizeUser(currentUser),
     });
   } catch (error) {
     console.error('Login session update failed:', error);
@@ -251,10 +224,8 @@ router.get('/streak/:userID', verifyToken, ensureSelf('userID'), async (req, res
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    res.json({
-      dayCheck: user.dayCheck,
-      streakCount: user.streakCount,
-    });
+    const progress = await updateUserActivityProgress(userID);
+    res.json(progress);
   } catch (error) {
     console.error('Error fetching streak:', error);
     const apiError = getApiErrorResponse(error);
@@ -295,8 +266,12 @@ router.get('/:userId', verifyToken, ensureSelf('userId'), async (req, res) => {
 router.put('/:userId/update', verifyToken, ensureSelf('userId'), async (req, res) => {
   const { userId } = req.params;
   const body = req.body || {};
-  const username = body.username === undefined ? undefined : sanitizePlainText(body.username, 40) ?? body.username;
-  const email = body.email === undefined ? undefined : sanitizePlainText(body.email, 254) ?? body.email;
+  const username =
+    body.username === undefined
+      ? undefined
+      : (sanitizePlainText(body.username, 40) ?? body.username);
+  const email =
+    body.email === undefined ? undefined : (sanitizePlainText(body.email, 254) ?? body.email);
   const { currentPassword, newPassword } = body;
 
   const validationError = validateProfilePayload({ username, email, currentPassword, newPassword });
@@ -319,15 +294,10 @@ router.put('/:userId/update', verifyToken, ensureSelf('userId'), async (req, res
       user.username = normalizedUsername;
     }
 
-    if (email !== undefined) {
-      const normalizedEmail = email.trim().toLowerCase();
-      if (normalizedEmail !== user.email) {
-        const existingUser = await User.findOne({ email: normalizedEmail });
-        if (existingUser) {
-          return res.status(409).json({ error: 'Email already taken' });
-        }
-      }
-      user.email = normalizedEmail;
+    if (email !== undefined && email.trim().toLowerCase() !== user.email) {
+      return res
+        .status(422)
+        .json({ error: 'Email address cannot be changed from profile settings' });
     }
 
     if (newPassword) {
@@ -357,7 +327,11 @@ router.put('/:userId/update', verifyToken, ensureSelf('userId'), async (req, res
 router.post('/:userId/updateTotalDays', verifyToken, ensureSelf('userId'), async (req, res) => {
   const { userId } = req.params;
   const { dayCheck } = req.body || {};
-  if (!Array.isArray(dayCheck) || dayCheck.length > 7 || dayCheck.some((day) => typeof day !== 'boolean')) {
+  if (
+    !Array.isArray(dayCheck) ||
+    dayCheck.length > 7 ||
+    dayCheck.some((day) => typeof day !== 'boolean')
+  ) {
     return res.status(422).json({ error: 'dayCheck must be an array of up to 7 booleans' });
   }
   try {

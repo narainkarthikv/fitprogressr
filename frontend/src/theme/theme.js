@@ -2,32 +2,32 @@ import { createTheme, alpha } from '@mui/material/styles';
 
 export const lightTokens = {
   background: {
-    primary: '#F4F7FB',
-    secondary: '#EEF2F7',
+    primary: '#EEF2F7',
+    secondary: '#E7EDF5',
   },
   surface: {
-    primary: '#FFFFFF',
-    secondary: '#F8FAFC',
+    primary: '#F8FAFD',
+    secondary: '#F0F4F9',
     overlay: 'rgba(0, 0, 0, 0.5)',
   },
   text: {
-    primary: '#1A1A1A',
-    secondary: '#6B7280',
-    muted: '#9CA3AF',
+    primary: '#202A3B',
+    secondary: '#66758A',
+    muted: '#92A0B2',
     inverse: '#FFFFFF',
   },
   interactive: {
-    default: '#526FE8',
-    hover: '#405BD1',
-    active: '#344BB6',
-    disabled: '#D1D5DB',
+    default: '#5D73D5',
+    hover: '#4F65C1',
+    active: '#4054A8',
+    disabled: '#D3DBE7',
   },
-  success: '#22C55E',
-  error: '#EF4444',
-  warning: '#F59E0B',
+  success: '#32946F',
+  error: '#C95863',
+  warning: '#C9892D',
   border: {
-    primary: '#E3E9F1',
-    subtle: '#EEF2F7',
+    primary: '#DCE4EF',
+    subtle: '#E7EDF5',
   },
 };
 
@@ -106,7 +106,7 @@ export const getAppTheme = (mode = 'dark') => {
       mode,
       primary: {
         main: colors.interactive.default,
-        light: '#60A5FA',
+        light: isDark ? '#60A5FA' : '#788BD7',
         dark: colors.interactive.active,
       },
       secondary: {
@@ -229,6 +229,15 @@ export const getAppTheme = (mode = 'dark') => {
           '::-webkit-scrollbar-thumb:hover': {
             background: colors.interactive.hover,
           },
+          '@media (prefers-reduced-motion: reduce)': {
+            html: { scrollBehavior: 'auto' },
+            '*, *::before, *::after': {
+              scrollBehavior: 'auto !important',
+              animationDuration: '0.01ms !important',
+              animationIterationCount: '1 !important',
+              transitionDuration: '0.01ms !important',
+            },
+          },
           '.react-calendar-heatmap': {
             width: '100%',
             height: 'auto',
@@ -268,7 +277,7 @@ export const getAppTheme = (mode = 'dark') => {
             fontSize: '1rem',
             fontWeight: 600,
             borderRadius: 10,
-            minHeight: 40,
+            minHeight: 44,
             letterSpacing: '-0.01em',
             transition: 'transform 0.2s ease, box-shadow 0.2s ease',
             '&.Mui-disabled': {
@@ -295,6 +304,15 @@ export const getAppTheme = (mode = 'dark') => {
               backgroundColor: colors.background.secondary,
               borderColor: colors.interactive.default,
             },
+          },
+        },
+      },
+
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            minWidth: 44,
+            minHeight: 44,
           },
         },
       },

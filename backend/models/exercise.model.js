@@ -9,6 +9,7 @@ const exerciseSchema = new mongoose.Schema(
         description: { type: String, required: true },
         duration: { type: Number, required: true },
         exerciseCheck: { type: Boolean, required: true },
+        date: { type: Date },
       },
     ],
     trackExercises: [

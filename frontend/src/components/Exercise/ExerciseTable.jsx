@@ -107,16 +107,22 @@ const ExerciseTable = ({ exercises = [], handleDelete, loading = false }) => {
             Array.from({ length: 3 }, (_, index) => (
               <TableRow key={`exercise-skeleton-${index}`}>
                 <TableCell sx={{ py: 1.5, px: { xs: 1.5, sm: 2 } }}>
-                  <Skeleton variant="text" width={`${58 + index * 8}%`} />
+                  <Skeleton animation="wave" variant="text" width={`${58 + index * 8}%`} />
                 </TableCell>
                 <TableCell sx={{ py: 1.5, px: { xs: 1.5, sm: 2 } }}>
-                  <Skeleton variant="text" width="48%" />
+                  <Skeleton animation="wave" variant="text" width="48%" />
                 </TableCell>
                 <TableCell sx={{ py: 1.5, px: { xs: 1.5, sm: 2 } }}>
-                  <Skeleton variant="rounded" width={72} height={24} />
+                  <Skeleton animation="wave" variant="rounded" width={72} height={24} />
                 </TableCell>
                 <TableCell align="center" sx={{ py: 1.5, px: { xs: 1, sm: 1.5 } }}>
-                  <Skeleton variant="circular" width={24} height={24} sx={{ mx: 'auto' }} />
+                  <Skeleton
+                    animation="wave"
+                    variant="circular"
+                    width={24}
+                    height={24}
+                    sx={{ mx: 'auto' }}
+                  />
                 </TableCell>
               </TableRow>
             ))

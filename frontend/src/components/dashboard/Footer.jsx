@@ -5,7 +5,7 @@ const FOOTER_LINKS = [
   {
     heading: 'Project',
     links: [
-      { label: 'Open App', href: '#' },
+      { label: 'Open FitProgressr', href: '/' },
       {
         label: 'GitHub Repo',
         href: 'https://github.com/narainkarthikv/fitprogressr',
@@ -61,7 +61,6 @@ const FOOTER_LINKS = [
         href: 'https://github.com/narainkarthikv/fitprogressr#readme',
         external: true,
       },
-      { label: 'Privacy Notes', href: '#privacy', external: false },
     ],
   },
 ];
@@ -156,8 +155,8 @@ const Footer = () => (
                   maxWidth: '260px',
                 }}
               >
-                A focused training log built to keep you consistent and motivated. Open-source,
-                always free.
+                A focused training log for sessions, goals, and progress. Open source and built for
+                steady improvement.
               </Typography>
 
               {/* Privacy note */}
@@ -170,7 +169,7 @@ const Footer = () => (
                   display: 'block',
                 }}
               >
-                No account required. Your data stays on your device.
+                Your sessions and progress are connected to your account.
               </Typography>
 
               {/* Social icons */}

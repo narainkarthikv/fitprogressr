@@ -1,3 +1,6 @@
 **/node_modules
 **/.env
 **/dist
+# Playwright
+frontend/test-results/
+frontend/playwright-report/

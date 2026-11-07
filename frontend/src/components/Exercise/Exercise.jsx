@@ -27,7 +27,9 @@ const Exercise = ({ deleteExercise, exercise }) => {
       >
         {exercise.description}
       </TableCell>
-      <TableCell sx={{ py: 1.5, px: { xs: 1.5, sm: 2 }, color: 'text.secondary', fontSize: '0.9rem' }}>
+      <TableCell
+        sx={{ py: 1.5, px: { xs: 1.5, sm: 2 }, color: 'text.secondary', fontSize: '0.9rem' }}
+      >
         <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.5 }}>
           {exercise.duration}
           <Typography component="span" variant="caption" sx={{ opacity: 0.6 }}>

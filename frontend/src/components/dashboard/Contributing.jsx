@@ -160,6 +160,9 @@ const Contributing = () => {
           <Button
             variant="contained"
             size="large"
+            href="https://github.com/narainkarthikv/fitprogressr/issues/new/choose"
+            target="_blank"
+            rel="noopener noreferrer"
             sx={{
               px: 4,
               py: 1.5,
@@ -167,7 +170,7 @@ const Contributing = () => {
               alignSelf: { xs: 'stretch', md: 'center' },
             }}
           >
-            Share feedback
+            Share feedback on GitHub
           </Button>
         </Box>
       </Container>

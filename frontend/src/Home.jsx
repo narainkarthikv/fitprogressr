@@ -1,9 +1,9 @@
 import { Container, Grid, Box, Typography } from '@mui/material';
 import Card from './components/common/Card';
 import UserExperience from './components/UserExperience';
-import Quotes from './components/Quotes';
-import TotalDays from './components/TotalDays';
-import HeatMap from './components/HeatMap';
+import DailyMotivationQuote from './components/DailyMotivationQuote';
+import DailyStreakSummary from './components/DailyStreakSummary';
+import ActivityHeatmap from './components/ActivityHeatmap';
 import ExerciseTable from './components/Exercise/ExerciseTable';
 import ExerciseForm from './components/Exercise/ExerciseForm';
 import CalendarSelector from './components/Heatmap/HeatmapControls';
@@ -22,13 +22,13 @@ const Home = () => {
           <Card
             sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <Quotes />
+            <DailyMotivationQuote />
           </Card>
         </Grid>
         <Grid item xs={12} md={6} lg={4}>
           <Card sx={{ height: '100%' }}>
-            <TotalDays />
-            <HeatMap />
+            <DailyStreakSummary />
+            <ActivityHeatmap />
           </Card>
         </Grid>
       </Grid>
@@ -37,7 +37,7 @@ const Home = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={6}>
           <Card sx={{ height: '100%' }}>
-            <TotalDays />
+            <DailyStreakSummary />
           </Card>
         </Grid>
         <Grid item xs={12} md={6}>

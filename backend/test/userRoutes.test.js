@@ -7,7 +7,10 @@ const jwt = require('jsonwebtoken');
 process.env.JWT_SECRET = 'route-test-secret';
 const User = require('../models/user.model');
 const Exercise = require('../models/exercise.model');
+const Goal = require('../models/goal.model');
 const RateLimit = require('../models/rateLimit.model');
+const WorkoutSession = require('../models/workoutSession.model');
+const achievementService = require('../services/achievementService');
 const userRouter = require('../routes/user');
 const exerciseRouter = require('../routes/exercises');
 const { validateApiResponse } = require('../utils/responseSchemas');
@@ -15,9 +18,13 @@ const { validateApiResponse } = require('../utils/responseSchemas');
 test('user routes validate before queries, sanitize fields, and return safe contracts', async () => {
   const originalFindOne = User.findOne;
   const originalFindById = User.findById;
+  const originalFindByIdAndUpdate = User.findByIdAndUpdate;
   const originalUserSave = User.prototype.save;
   const originalExerciseSave = Exercise.prototype.save;
   const originalExerciseFindOne = Exercise.findOne;
+  const originalWorkoutSessionFind = WorkoutSession.find;
+  const originalEvaluateAchievements = achievementService.evaluateAchievements;
+  const originalGoalFind = Goal.find;
   const originalRateLimitFindOneAndUpdate = RateLimit.findOneAndUpdate;
   let userQueries = 0;
   let createExerciseSaveCount = 0;
@@ -27,23 +34,45 @@ test('user routes validate before queries, sanitize fields, and return safe cont
     userQueries += 1;
     return null;
   };
-  User.findById = async () => {
+  User.findById = () => {
     userQueries += 1;
-    return null;
+    return { select: async () => null };
   };
-  User.prototype.save = async function saveUser() { return this; };
+  User.prototype.save = async function saveUser() {
+    return this;
+  };
   Exercise.prototype.save = async function saveExercise() {
     createExerciseSaveCount += 1;
     return this;
   };
-  Exercise.findOne = async () => {
+  Goal.find = async () => [];
+  const exerciseData = {
+    Exercises: [],
+    trackExercises: [],
+    async save() {
+      return this;
+    },
+  };
+  Exercise.findOne = () => {
     exerciseQueries += 1;
     return {
-      Exercises: [],
-      trackExercises: [],
-      async save() { return this; },
+      select() {
+        return this;
+      },
+      lean: async () => exerciseData,
+      then(resolve, reject) {
+        return Promise.resolve(exerciseData).then(resolve, reject);
+      },
     };
   };
+  WorkoutSession.find = () => ({
+    select() {
+      return this;
+    },
+    lean: async () => [],
+  });
+  User.findByIdAndUpdate = async () => ({ matchedCount: 1 });
+  achievementService.evaluateAchievements = async () => [];
   RateLimit.findOneAndUpdate = async () => ({ count: 1, resetAt: new Date(Date.now() + 60_000) });
 
   const app = express();
@@ -51,13 +80,15 @@ test('user routes validate before queries, sanitize fields, and return safe cont
   app.use((req, res, next) => {
     const sendJson = res.json.bind(res);
     res.json = (body) => {
-      if (!validateApiResponse({
-        method: req.method,
-        routePath: req.route?.path,
-        baseUrl: req.baseUrl || '',
-        statusCode: res.statusCode,
-        body,
-      })) {
+      if (
+        !validateApiResponse({
+          method: req.method,
+          routePath: req.route?.path,
+          baseUrl: req.baseUrl || '',
+          statusCode: res.statusCode,
+          body,
+        })
+      ) {
         res.statusCode = 500;
         return sendJson({ error: 'Internal server error' });
       }
@@ -77,7 +108,10 @@ test('user routes validate before queries, sanitize fields, and return safe cont
 
     const invalidProfile = await request(app)
       .put('/api/user/507f1f77bcf86cd799439011/update')
-      .set('Authorization', `Bearer ${jwt.sign({ id: '507f1f77bcf86cd799439011' }, process.env.JWT_SECRET)}`)
+      .set(
+        'Authorization',
+        `Bearer ${jwt.sign({ id: '507f1f77bcf86cd799439011' }, process.env.JWT_SECRET)}`
+      )
       .send({ username: 'x' });
     assert.equal(invalidProfile.status, 422);
     assert.equal(userQueries, 0);
@@ -106,7 +140,7 @@ test('user routes validate before queries, sanitize fields, and return safe cont
     assert.equal(validExercise.status, 201);
     assert.equal(validExercise.body.newExercise.description, 'Morning run');
     assert.equal(validExercise.body.newExercise.duration, 20);
-    assert.equal(exerciseQueries, 1);
+    assert.equal(exerciseQueries, 2);
 
     const unknownLogin = await request(app)
       .post('/api/user/login')
@@ -116,9 +150,13 @@ test('user routes validate before queries, sanitize fields, and return safe cont
   } finally {
     User.findOne = originalFindOne;
     User.findById = originalFindById;
+    User.findByIdAndUpdate = originalFindByIdAndUpdate;
     User.prototype.save = originalUserSave;
     Exercise.prototype.save = originalExerciseSave;
     Exercise.findOne = originalExerciseFindOne;
+    WorkoutSession.find = originalWorkoutSessionFind;
+    achievementService.evaluateAchievements = originalEvaluateAchievements;
+    Goal.find = originalGoalFind;
     RateLimit.findOneAndUpdate = originalRateLimitFindOneAndUpdate;
   }
 });

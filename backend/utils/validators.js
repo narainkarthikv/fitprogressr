@@ -16,14 +16,24 @@ const validateUserPayload = ({ username, email, password }) => {
 };
 
 const validateProfilePayload = ({ username, email, currentPassword, newPassword }) => {
-  if (username !== undefined && (typeof username !== 'string' || username.trim().length < 3 || username.trim().length > 40 || /[<>\u0000-\u001f]/.test(username))) {
+  if (
+    username !== undefined &&
+    (typeof username !== 'string' ||
+      username.trim().length < 3 ||
+      username.trim().length > 40 ||
+      /[<>\u0000-\u001f]/.test(username))
+  ) {
     return 'Username must be 3 to 40 characters of plain text';
   }
-  if (email !== undefined && (typeof email !== 'string' || email.trim().length > 254 || !EMAIL_PATTERN.test(email.trim()))) {
+  if (
+    email !== undefined &&
+    (typeof email !== 'string' || email.trim().length > 254 || !EMAIL_PATTERN.test(email.trim()))
+  ) {
     return 'A valid email address is required';
   }
   if (newPassword !== undefined && newPassword !== '') {
-    if (typeof currentPassword !== 'string' || !currentPassword) return 'Current password is required';
+    if (typeof currentPassword !== 'string' || !currentPassword)
+      return 'Current password is required';
     if (typeof newPassword !== 'string' || !PASSWORD_PATTERN.test(newPassword)) {
       return 'New password must be at least 8 characters and include uppercase, lowercase, number, and special character';
     }
@@ -71,7 +81,13 @@ const validateExercisePayload = ({ description, duration, exerciseCheck }) => {
 const validateMonth = (month) => {
   const monthNum = Number(month);
   if (Number.isInteger(monthNum) && monthNum >= 1 && monthNum <= 12) return null;
-  if (typeof month === 'string' && /^(january|february|march|april|may|june|july|august|september|october|november|december)$/i.test(month)) return null;
+  if (
+    typeof month === 'string' &&
+    /^(january|february|march|april|may|june|july|august|september|october|november|december)$/i.test(
+      month
+    )
+  )
+    return null;
   return 'Invalid month parameter';
 };
 

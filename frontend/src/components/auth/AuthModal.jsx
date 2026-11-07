@@ -35,8 +35,9 @@ import Lottie from 'react-lottie';
 import loginAnimation from '../../assets/lottie/login-lottie.json';
 import signupAnimation from '../../assets/lottie/signup-lottie.json';
 import Snackbar from '../common/Snackbar';
-import { API_BASE_URL, setAccessToken, setRefreshToken } from '../../utils/api';
+import { setAccessToken, setRefreshToken } from '../../utils/api';
 import { validateEmail, validateUsername } from '../../utils/validation';
+import { useLoginMutation, useRegisterMutation } from '../../services/api';
 
 const passwordChecks = [
   {
@@ -102,11 +103,15 @@ const calculatePasswordStrength = (password = '') => {
 const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const lottieSize = isMobile ? 220 : 300;
   const [mode, setMode] = useState(initialMode);
+  const lottieSize = mode === 'signup'
+    ? (isMobile ? 112 : 290)
+    : (isMobile ? 148 : 350);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginRequest, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [registerRequest, { isLoading: isRegistering }] = useRegisterMutation();
+  const isSubmitting = isLoggingIn || isRegistering;
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState({
     show: false,
@@ -131,7 +136,6 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("Let's Get Started!");
 
-  const backendURL = API_BASE_URL;
   const passwordStrength = useMemo(
     () => calculatePasswordStrength(signupForm.password),
     [signupForm.password]
@@ -218,27 +222,10 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError('');
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-      const loginResponse = await fetch(`${backendURL}/api/user/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(loginCredentials),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      const data = await loginResponse.json();
-
-      if (!loginResponse.ok) {
-        throw new Error(data.message || data.error || 'Login failed');
-      }
+      const data = await loginRequest(loginCredentials).unwrap();
 
       const accessToken = data.accessToken;
       if (accessToken) {
@@ -269,14 +256,18 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
       }, 1500);
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.message || 'Failed to login. Please try again.');
+      setError(
+        error.data?.message ||
+          error.data?.error ||
+          error.error ||
+          error.message ||
+          'Failed to login. Please try again.'
+      );
       setSnackbar({
         show: true,
         message: 'Login failed!',
         type: 'failure',
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -310,23 +301,11 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
       return;
     }
 
-    setIsSubmitting(true);
-
     const formData = { ...signupForm };
     delete formData.confirmpassword;
 
     try {
-      const response = await fetch(`${backendURL}/api/user/add`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to sign up');
-      }
+      await registerRequest(formData).unwrap();
 
       setSnackbar({
         show: true,
@@ -347,14 +326,18 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
       }, 2000);
     } catch (error) {
       console.error('Signup error:', error);
-      setError(error.message || 'Failed to sign up. Please try again.');
+      setError(
+        error.data?.message ||
+          error.data?.error ||
+          error.error ||
+          error.message ||
+          'Failed to sign up. Please try again.'
+      );
       setSnackbar({
         show: true,
         message: 'Sign up failed!',
         type: 'failure',
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -373,7 +356,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
         open={open}
         onClose={onClose}
         fullScreen={isMobile}
-        maxWidth="lg"
+        maxWidth="xl"
         fullWidth
         scroll="paper"
         BackdropProps={{
@@ -388,7 +371,8 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
             backgroundColor: 'transparent',
             boxShadow: 'none',
             overflow: 'visible',
-            maxHeight: '100vh',
+            width: { xs: '100%', md: 'min(1320px, calc(100vw - 48px))' },
+            maxHeight: { xs: '100dvh', md: 'calc(100dvh - 48px)' },
           },
         }}
       >
@@ -398,14 +382,17 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
             borderRadius: { xs: 0, md: 4 },
             overflowX: 'hidden',
             overflowY: 'auto',
-            maxHeight: { xs: '100vh', md: 'calc(100vh - 64px)' },
+            maxHeight: { xs: '100dvh', md: 'calc(100dvh - 48px)' },
             backgroundColor: 'transparent',
+            display: 'flex',
+            alignItems: { md: 'center' },
+            justifyContent: 'center',
           }}
         >
           <Box
             sx={{
               width: '100%',
-              maxWidth: 1180,
+              maxWidth: 1320,
               mx: 'auto',
               my: 0,
               borderRadius: { xs: 0, md: 4 },
@@ -415,21 +402,22 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
               flexDirection: { xs: 'column', md: 'row' },
               backgroundColor: 'background.paper',
               backgroundClip: 'padding-box',
-              minHeight: { xs: '100vh', md: 620 },
+              minHeight: { xs: '100dvh', md: 'min(740px, calc(100dvh - 48px))' },
+              maxHeight: { md: 'calc(100dvh - 48px)' },
             }}
           >
             <Box
               sx={{
-                flex: { xs: '0 0 38%', md: '0 0 45%' },
-                background: `linear-gradient(140deg, ${alpha(theme.palette.primary.main, 0.85)} 0%, ${alpha(
+                flex: { xs: '0 0 auto', md: '0 0 52%' },
+                background: `radial-gradient(ellipse at 70% 76%, ${alpha('#9FB6FF', 0.34)} 0%, transparent 34%), linear-gradient(150deg, ${alpha(theme.palette.primary.main, 0.96)} 0%, ${alpha(
                   theme.palette.primary.dark,
-                  0.9
-                )} 60%, ${alpha(theme.palette.primary.light, 0.65)} 100%)`,
+                  0.98
+                )} 65%, ${alpha(theme.palette.primary.light, 0.82)} 100%)`,
                 color: '#fff',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
-                p: { xs: 4, md: 5 },
+                justifyContent: { xs: 'flex-start', md: 'space-between' },
+                p: { xs: 2.5, sm: 3, md: 4.5 },
                 position: 'relative',
                 overflow: 'hidden',
                 '&::before': {
@@ -456,63 +444,74 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                 },
               }}
             >
-              <Stack spacing={2.5} sx={{ zIndex: 1 }}>
+              <Stack spacing={{ xs: 1.5, md: 2 }} sx={{ zIndex: 1 }}>
                 <Chip
-                  label="Athlete Workspace"
+                  label={mode === 'login' ? 'YOUR TRAINING SPACE' : 'START WITH A STRONG BASE'}
                   sx={{
                     alignSelf: 'flex-start',
-                    fontWeight: 600,
-                    backgroundColor: alpha('#fff', 0.2),
+                    fontWeight: 700,
+                    letterSpacing: '.01em',
+                    backgroundColor: alpha('#fff', 0.16),
                     color: '#fff',
+                    border: `1px solid ${alpha('#fff', 0.22)}`,
                   }}
                 />
                 <Typography
                   variant="h4"
                   sx={{
                     fontWeight: 700,
-                    lineHeight: 1.2,
+                    lineHeight: 1.08,
+                    letterSpacing: '-.035em',
+                    fontSize: { xs: '1.55rem', md: 'clamp(2rem, 2.8vw, 2.75rem)' },
+                    maxWidth: 520,
                   }}
                 >
                   {mode === 'login'
-                    ? 'Sign in and pick up exactly where you left off'
-                    : 'Create an account and start building consistent momentum'}
+                    ? 'Your progress is ready when you are.'
+                    : 'Build a stronger routine, one session at a time.'}
                 </Typography>
                 <Typography
                   variant="body1"
                   sx={{
                     color: alpha('#fff', 0.85),
-                    maxWidth: 360,
+                    maxWidth: 420,
+                    lineHeight: 1.55,
                   }}
                 >
-                  Personalized insights, streak tracking, and smart nudges keep you honest with your
-                  goals.
+                  {mode === 'login'
+                    ? 'Pick up your daily streak, review your goals, and keep your training momentum going.'
+                    : 'Log workouts, follow your daily streak, and earn achievements as your consistency grows.'}
                 </Typography>
-                <Stack spacing={1.5}>
-                  {[
-                    'Progress dashboards updated in real time',
-                    'Workout logging that takes seconds',
-                    'Secure, private and synced across devices',
-                  ].map((item) => (
-                    <Box key={item} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CheckCircleOutline sx={{ fontSize: 18, color: '#fff' }} />
-                      <Typography
-                        variant="body2"
-                        sx={{ color: alpha('#fff', 0.9), fontWeight: 500 }}
-                      >
-                        {item}
-                      </Typography>
-                    </Box>
+                <Stack direction="row" flexWrap="wrap" columnGap={1} rowGap={1}>
+                  {(mode === 'login'
+                    ? ['Daily streaks', 'Goals & achievements', 'Workout history']
+                    : ['Quick workout logging', 'Personal training goals', 'Unlockable milestones']
+                  ).map((item) => (
+                    <Chip
+                      key={item}
+                      icon={<CheckCircleOutline sx={{ fontSize: '16px !important', color: '#E1E9FF !important' }} />}
+                      label={item}
+                      size="small"
+                      sx={{
+                        minHeight: 32,
+                        color: alpha('#fff', 0.96),
+                        fontWeight: 650,
+                        backgroundColor: alpha('#0C1738', 0.2),
+                        border: `1px solid ${alpha('#fff', 0.18)}`,
+                        '& .MuiChip-label': { px: 1 },
+                      }}
+                    />
                   ))}
                 </Stack>
               </Stack>
-              <Box sx={{ mt: 4, alignSelf: 'center', width: lottieSize, height: lottieSize }}>
+              <Box sx={{ mt: { xs: 1.5, md: 0 }, alignSelf: 'center', width: { xs: lottieSize, md: 'min(100%, 480px)' }, height: { xs: lottieSize, md: lottieSize }, minHeight: { md: mode === 'signup' ? 245 : 300 }, display: 'grid', placeItems: 'center', position: 'relative', zIndex: 1 }}>
                 <Lottie options={lottieOptions} height={lottieSize} width={lottieSize} />
               </Box>
             </Box>
 
             <Box
               sx={{
-                flex: 1,
+                flex: '1 1 48%',
                 position: 'relative',
                 backgroundColor: 'background.paper',
                 display: 'flex',
@@ -526,11 +525,18 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                   right: { xs: 16, md: 20 },
                   top: { xs: 16, md: 20 },
                   zIndex: 2,
+                  width: 42,
+                  height: 42,
+                  borderRadius: '12px',
+                  border: '1px solid',
+                  borderColor: 'divider',
                   color: 'text.secondary',
-                  backgroundColor: alpha(theme.palette.text.primary, 0.04),
+                  backgroundColor: alpha(theme.palette.text.primary, 0.035),
                   '&:hover': {
                     backgroundColor: alpha(theme.palette.text.primary, 0.12),
+                    transform: 'translateY(-1px)',
                   },
+                  transition: 'transform 160ms ease, background-color 160ms ease',
                 }}
               >
                 <CloseIcon />
@@ -541,15 +547,16 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                   flex: 1,
                   display: 'flex',
                   flexDirection: 'column',
-                  p: { xs: 3, md: 5 },
-                  pt: { xs: 7, md: 6 },
+                  justifyContent: { md: 'center' },
+                  p: { xs: 2.5, sm: 3.5, md: '64px clamp(36px, 4vw, 68px)' },
+                  pt: { xs: 7, md: '64px' },
                 }}
               >
-                <Stack spacing={1} sx={{ mb: 2.5 }}>
+                <Stack spacing={.75} sx={{ mb: 2 }}>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {mode === 'login' ? 'Welcome back' : 'Create your FitProgressr account'}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 420 }}>
                     {mode === 'login'
                       ? 'Securely access your streaks, routines, and saved workouts.'
                       : 'A few quick details and you are ready to track every rep.'}
@@ -561,6 +568,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                   onChange={handleModeChange}
                   sx={{
                     alignSelf: 'flex-start',
+                    minHeight: 44,
                     '& .MuiTab-root': {
                       fontSize: '0.95rem',
                       fontWeight: 600,
@@ -573,7 +581,7 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                   <Tab label="Sign Up" value="signup" />
                 </Tabs>
 
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ my: 1.5 }} />
 
                 {error && (
                   <Alert severity="error" sx={{ mb: 2 }}>
@@ -581,14 +589,14 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                   </Alert>
                 )}
 
-                <Box sx={{ flex: 1, overflowY: 'auto', pr: { md: 1 } }}>
+                <Box sx={{ flex: { md: '0 1 auto' }, minHeight: 0, overflowY: { xs: 'visible', md: 'auto' }, overflowX: 'hidden', pt: 1.25, pr: { md: 1 }, scrollbarWidth: 'thin', '& .MuiTextField-root': { '& .MuiOutlinedInput-root': { minHeight: 58, borderRadius: '14px', backgroundColor: alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.48 : 0.55), transition: 'border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease', '& fieldset': { borderColor: alpha(theme.palette.divider, 0.9), transition: 'border-color 160ms ease' }, '&:hover fieldset': { borderColor: alpha(theme.palette.primary.main, 0.62) }, '&.Mui-focused': { boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.13)}`, backgroundColor: 'background.paper' }, '&.Mui-focused fieldset': { borderWidth: 1, borderColor: 'primary.main' } }, '& .MuiInputLabel-root': { fontWeight: 550 }, '& .MuiInputAdornment-root .MuiSvgIcon-root': { fontSize: 19 } }, '& .MuiFormHelperText-root': { mx: .5, mt: .75, lineHeight: 1.4 } }}>
                   {mode === 'login' ? (
                     <Box
                       component="form"
                       onSubmit={handleLogin}
                       sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}
                     >
-                      <Stack spacing={2.5} sx={{ flex: 1 }}>
+                      <Stack spacing={2} sx={{ flex: 1 }}>
                         <Box>
                           <TextField
                             fullWidth
@@ -641,10 +649,10 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                           />
                         </Box>
 
-                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                          <EmojiEmotions sx={{ color: 'primary.main', mr: 1, fontSize: 24 }} />
-                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            Feeling 💪 today?
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: .75, mt: .5, color: 'text.secondary' }}>
+                          <EmojiEmotions sx={{ color: 'primary.main', fontSize: 19 }} />
+                          <Typography variant="caption" fontWeight={600}>
+                            Your training progress is ready when you are.
                           </Typography>
                         </Box>
                       </Stack>
@@ -656,11 +664,13 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                         fullWidth
                         disabled={isSubmitting || !canSubmitLogin}
                         sx={{
-                          mt: 4,
-                          py: 1.5,
-                          fontSize: '1rem',
+                          mt: 2.5,
+                          py: 1.35,
+                          fontSize: '.98rem',
                           fontWeight: 600,
                           textTransform: 'none',
+                          borderRadius: '12px',
+                          boxShadow: '0 10px 24px rgba(75, 112, 240, .2)',
                         }}
                       >
                         {isSubmitting ? 'Signing In...' : 'Sign In'}
@@ -867,7 +877,11 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                               endAdornment: (
                                 <InputAdornment position="end">
                                   <IconButton
-                                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                                    aria-label={
+                                      showConfirmPassword
+                                        ? 'Hide confirm password'
+                                        : 'Show confirm password'
+                                    }
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                     edge="end"
                                     size="small"
@@ -902,11 +916,13 @@ const AuthModal = ({ open, onClose, initialMode = 'login', onAuthSuccess }) => {
                         fullWidth
                         disabled={isSubmitting || !canSubmitSignup}
                         sx={{
-                          mt: 4,
-                          py: 1.5,
+                          mt: 2.5,
+                          py: 1.35,
                           fontSize: '1rem',
                           fontWeight: 600,
                           textTransform: 'none',
+                          borderRadius: '12px',
+                          boxShadow: '0 10px 24px rgba(75, 112, 240, .2)',
                         }}
                       >
                         {isSubmitting ? 'Creating Account...' : 'Start Your Journey'}

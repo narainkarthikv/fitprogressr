@@ -20,27 +20,15 @@ import {
 import PropTypes from 'prop-types';
 
 const NotificationDropdown = ({ notifications = [], toggleNotificationReadStatus }) => {
-  const defaultNotifications = [
-    { id: 1, message: 'Welcome to FitProgressr!', read: false },
-    {
-      id: 2,
-      message: 'Your profile is 80% complete. Complete it for full',
-      read: false,
-    },
-  ];
   const [anchorEl, setAnchorEl] = useState(null);
-  const [notifs, setNotifs] = useState(
-    notifications.length > 0 ? notifications : defaultNotifications
-  );
+  const [notifs, setNotifs] = useState(notifications);
 
   const open = Boolean(anchorEl);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
-    if (notifications.length > 0) {
-      setNotifs(notifications);
-    }
+    setNotifs(notifications);
   }, [notifications]);
 
   const handleClick = (event) => {

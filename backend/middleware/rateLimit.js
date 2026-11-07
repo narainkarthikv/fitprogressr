@@ -36,7 +36,10 @@ const createRateLimit = ({ windowMs, max, message }, rateLimitStore = RateLimit)
       res.set('RateLimit-Remaining', String(Math.max(0, max - entry.count)));
 
       if (entry.count > max) {
-        res.set('Retry-After', String(Math.max(1, Math.ceil((entry.resetAt.getTime() - now) / 1000))));
+        res.set(
+          'Retry-After',
+          String(Math.max(1, Math.ceil((entry.resetAt.getTime() - now) / 1000)))
+        );
         return res.status(429).json({ error: message });
       }
       return next();

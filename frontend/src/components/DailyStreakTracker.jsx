@@ -1,101 +1,81 @@
-import { useEffect, useState } from 'react';
-import { updateTotalDays } from '../slices/userRoutineSlice';
+import { useMemo } from 'react';
 import { Box, Typography, Chip, Skeleton } from '@mui/material';
 import {
   Whatshot as FireIcon,
   CheckCircle as CheckCircleIcon,
   SentimentDissatisfied,
 } from '@mui/icons-material';
-import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
-import { API_BASE_URL, getAccessToken } from '../utils/api';
+import { useGetStreakQuery } from '../services/api';
 
-const UserRoutine = ({ userID, compact = false }) => {
-  const [dayCheck, setDayCheck] = useState([false, false, false, false, false, false, false]);
-  const [streak, setStreak] = useState(0);
-  const [weeklyStreakValue, setWeeklyStreakValue] = useState(0);
-  const [msg, setMsg] = useState('');
-  const [loading, setLoading] = useState(true);
-  const backendURL = API_BASE_URL;
-
-  const dispatch = useDispatch();
+const DailyStreakTracker = ({ userID, compact = false }) => {
+  const { data, isLoading: loading } = useGetStreakQuery(userID, { skip: !userID });
+  const dayCheck = data?.dayCheck || [false, false, false, false, false, false, false];
+  const streak = data?.streakCount || 0;
+  const msg = useMemo(
+    () =>
+      streak
+        ? `${streak} consecutive training ${streak === 1 ? 'day' : 'days'}`
+        : 'Complete a workout to start your streak.',
+    [streak]
+  );
   const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-  const weeklyStreak = (updatedDayCheck) => {
-    const todayIndex = new Date().getDay();
-    for (let index = 0; index < updatedDayCheck.length; index++) {
-      if (!updatedDayCheck[index]) {
-        setWeeklyStreakValue(index - 1);
-        if (index < todayIndex) setMsg('Streak Missed Mid-week 😢');
-        else setMsg('');
-        return;
-      }
-    }
-    setWeeklyStreakValue(todayIndex);
-  };
-
-  useEffect(() => {
-    let isCurrent = true;
-    if (!userID) {
-      setLoading(false);
-      return () => {
-        isCurrent = false;
-      };
-    }
-
-    setLoading(true);
-
-    const fetchData = async () => {
-      try {
-        const accessToken = getAccessToken();
-        const res = await fetch(`${backendURL}/api/user/streak/${userID}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!res.ok) throw new Error('Unable to fetch workout streak');
-        const data = await res.json();
-        if (!isCurrent) return;
-        setStreak(data.streakCount);
-        setDayCheck(data.dayCheck);
-        weeklyStreak(data.dayCheck);
-        dispatch(updateTotalDays(userID, data.dayCheck));
-      } catch (error) {
-        console.error('Fetch error:', error);
-      } finally {
-        if (isCurrent) setLoading(false);
-      }
-    };
-
-    fetchData();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [userID, backendURL, dispatch]);
-
-  const today = new Date().getDay();
+  const today = new Date().getUTCDay();
 
   if (loading) {
     return (
       <Box
         role="status"
-        aria-label="Loading weekly streak"
+        aria-label="Loading daily streak"
         sx={{ display: 'flex', flexDirection: 'column', gap: compact ? 0.75 : 2 }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: compact ? 'flex-start' : 'center', gap: 1 }}>
-          <Skeleton variant="circular" width={compact ? 26 : 40} height={compact ? 26 : 40} />
-          <Skeleton variant="text" width={compact ? 34 : 68} height={compact ? 34 : 64} />
-          <Skeleton variant="text" width={compact ? 74 : 110} height={24} />
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: compact ? 'flex-start' : 'center',
+            gap: 1,
+          }}
+        >
+          <Skeleton
+            animation="wave"
+            variant="circular"
+            width={compact ? 26 : 40}
+            height={compact ? 26 : 40}
+          />
+          <Skeleton
+            animation="wave"
+            variant="text"
+            width={compact ? 34 : 68}
+            height={compact ? 34 : 64}
+          />
+          <Skeleton animation="wave" variant="text" width={compact ? 74 : 110} height={24} />
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: compact ? 'center' : 'space-between', gap: compact ? 0.3 : 0 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: compact ? 'center' : 'space-between',
+            gap: compact ? 0.3 : 0,
+          }}
+        >
           {weekdays.map((day) => (
-            <Box key={day} sx={{ width: compact ? 24 : 38, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-              <Skeleton variant="text" width={20} height={18} />
-              <Skeleton variant="circular" width={compact ? 14 : 20} height={compact ? 14 : 20} />
+            <Box
+              key={day}
+              sx={{
+                width: compact ? 24 : 38,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 0.5,
+              }}
+            >
+              <Skeleton animation="wave" variant="text" width={20} height={18} />
+              <Skeleton
+                animation="wave"
+                variant="circular"
+                width={compact ? 14 : 20}
+                height={compact ? 14 : 20}
+              />
             </Box>
           ))}
         </Box>
@@ -120,7 +100,9 @@ const UserRoutine = ({ userID, compact = false }) => {
       {/* Streak Card */}
       <Box
         sx={{
-          background: compact ? 'transparent' : 'linear-gradient(135deg, rgba(109, 140, 255, 0.16), rgba(109, 140, 255, 0.04))',
+          background: compact
+            ? 'transparent'
+            : 'linear-gradient(135deg, rgba(109, 140, 255, 0.16), rgba(109, 140, 255, 0.04))',
           border: compact ? 'none' : '1px solid rgba(109, 140, 255, 0.18)',
           borderRadius: compact ? 0 : '16px',
           p: compact ? 0 : { xs: 3, lg: 2 },
@@ -215,7 +197,7 @@ const UserRoutine = ({ userID, compact = false }) => {
               <Typography
                 sx={{
                   display: 'block',
-            fontSize: compact ? '0.72rem' : '0.85rem',
+                  fontSize: compact ? '0.72rem' : '0.85rem',
                   fontWeight: index === today ? 700 : 500,
                   color: index === today ? 'primary.main' : 'text.secondary',
                   transition: 'all 0.2s ease',
@@ -260,8 +242,8 @@ const UserRoutine = ({ userID, compact = false }) => {
           <Box
             sx={{
               height: '100%',
-              width: `${(weeklyStreakValue / 6) * 100}%`,
-            backgroundColor: 'primary.main',
+              width: `${(Math.min(streak, 7) / 7) * 100}%`,
+              backgroundColor: 'primary.main',
               transition: 'width 0.5s ease-in-out',
               borderRadius: '3px',
             }}
@@ -294,9 +276,9 @@ const UserRoutine = ({ userID, compact = false }) => {
   );
 };
 
-UserRoutine.propTypes = {
+DailyStreakTracker.propTypes = {
   userID: PropTypes.string.isRequired,
   compact: PropTypes.bool,
 };
 
-export default UserRoutine;
+export default DailyStreakTracker;

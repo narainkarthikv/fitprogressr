@@ -2,7 +2,9 @@ export const ACCESS_TOKEN_KEY = 'accessToken';
 const LEGACY_ACCESS_TOKEN_KEY = 'token';
 export const REFRESH_TOKEN_KEY = 'refreshToken';
 export const USER_ID_KEY = 'userId';
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/$/, '');
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '')
+).replace(/\/$/, '');
 
 export const getAccessToken = () => {
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);

@@ -9,6 +9,7 @@ import {
   alpha,
   useTheme,
   Typography,
+  Stack,
 } from '@mui/material';
 import { FitnessCenter as FaDumbbell } from '@mui/icons-material';
 
@@ -68,14 +69,35 @@ const LandingNav = ({ onSignInClick, onGetStartedClick }) => {
             </Typography>
           </Box>
 
+          <Stack
+            direction="row"
+            spacing={3}
+            sx={{ display: { xs: 'none', md: 'flex' }, ml: 'auto', mr: 4 }}
+          >
+            <Button
+              href="#features"
+              color="inherit"
+              sx={{ color: 'text.secondary', fontWeight: 600 }}
+            >
+              Features
+            </Button>
+            <Button
+              href="#track-your-progress"
+              color="inherit"
+              sx={{ color: 'text.secondary', fontWeight: 600 }}
+            >
+              How it works
+            </Button>
+          </Stack>
+
           {/* CTA Buttons */}
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 1 }, alignItems: 'center' }}>
             <Button
               onClick={onSignInClick}
               variant="text"
               sx={{
                 fontWeight: 600,
-                px: 2.5,
+                px: { xs: 1.25, sm: 2 },
                 py: 1,
                 fontSize: '0.9375rem',
                 textTransform: 'none',
@@ -92,7 +114,7 @@ const LandingNav = ({ onSignInClick, onGetStartedClick }) => {
               variant="contained"
               sx={{
                 fontWeight: 600,
-                px: 3,
+                px: { xs: 1.5, sm: 2.5 },
                 py: 1,
                 fontSize: '0.9375rem',
                 textTransform: 'none',
@@ -102,7 +124,7 @@ const LandingNav = ({ onSignInClick, onGetStartedClick }) => {
                 },
               }}
             >
-              Get Started Free
+              Get Started
             </Button>
           </Box>
         </Toolbar>

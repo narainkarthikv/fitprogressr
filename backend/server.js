@@ -104,13 +104,15 @@ app.use((req, res, next) => {
       body,
     });
     if (!isValid) {
-      console.error(JSON.stringify({
-        level: 'error',
-        timestamp: new Date().toISOString(),
-        message: 'API response did not match its schema',
-        method: req.method,
-        path: req.path,
-      }));
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          timestamp: new Date().toISOString(),
+          message: 'API response did not match its schema',
+          method: req.method,
+          path: req.path,
+        })
+      );
       res.statusCode = 500;
       return sendJson({ error: 'Internal server error' });
     }
@@ -123,14 +125,16 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   const startedAt = Date.now();
   res.on('finish', () => {
-    console.log(JSON.stringify({
-      level: 'info',
-      timestamp: new Date().toISOString(),
-      method: req.method,
-      path: req.path,
-      status: res.statusCode,
-      durationMs: Date.now() - startedAt,
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        durationMs: Date.now() - startedAt,
+      })
+    );
   });
   next();
 });
@@ -179,16 +183,31 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Routes
 const exercisesRouter = require('./routes/exercises');
+const workoutSessionsRouter = require('./routes/workoutSessions');
+const userAchievementsRouter = require('./routes/userAchievements');
 const userRouter = require('./routes/user');
 const healthRouter = require('./routes/health');
+const goalsRouter = require('./routes/goals');
+const achievementsRouter = require('./routes/achievements');
 
 app.use('/api/exercises', exercisesRouter);
+app.use('/api/workout-sessions', workoutSessionsRouter);
+app.use('/api/user-achievements', userAchievementsRouter);
 app.use('/api/user', userRouter);
 app.use('/api/health', healthRouter);
+app.use('/api/goals', goalsRouter);
+app.use('/api/achievements', achievementsRouter);
 
 // Global error handler (must be before 404 handler)
 app.use((err, req, res, next) => {
-  console.error(JSON.stringify({ level: 'error', timestamp: new Date().toISOString(), message: err.message, path: req.path }));
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      timestamp: new Date().toISOString(),
+      message: err.message,
+      path: req.path,
+    })
+  );
   if (res.headersSent) return next(err);
   res.status(err.status || 500).json({
     error: err.status && err.status < 500 ? 'Invalid request' : 'Internal server error',

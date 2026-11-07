@@ -631,3 +631,33 @@ Want to help build these features? Check out our [Contributing Guide](./CONTRIBU
 **Built with ❤️ by the Wisdom Fox community**
 
 _Let's build the best fitness tracker together! 🚀_
+
+## End-to-End Testing
+
+This project uses Playwright for browser-based end-to-end testing.
+
+### Run tests locally
+
+```bash
+cd frontend
+npm install
+npx playwright install
+npx playwright test
+```
+
+### Run tests in a specific browser
+
+```bash
+npx playwright test --project=chromium
+npx playwright test --project=firefox
+npx playwright test --project=webkit
+```
+
+### Debug tests
+
+```bash
+npx playwright test --headed
+npx playwright test --debug
+```
+
+Test files are located in `frontend/tests/e2e/`.

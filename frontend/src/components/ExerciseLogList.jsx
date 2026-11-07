@@ -1,31 +1,25 @@
-import { useEffect, useMemo } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Box, Typography, Fade, Button } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Fade, Button, Skeleton } from '@mui/material';
 import { Add } from '@mui/icons-material';
-import { fetchExercises, deleteExercise } from '../slices/exercisesSlice';
+import { useDeleteLegacyExerciseMutation, useGetLegacyExercisesQuery } from '../services/api';
 import ExerciseTable from './Exercise/ExerciseTable';
 
-const ExercisesList = ({ userID, title = "Today's Exercises", onAddExercise }) => {
-  const dispatch = useDispatch();
-  const userExercises = useSelector((state) => state.exercises.userExercises);
-  const status = useSelector((state) => state.exercises.status);
-
-  const exercises = useMemo(() => userExercises?.[userID] || [], [userExercises, userID]);
-  const hasFetchedExercises = Array.isArray(userExercises?.[userID]);
-  const isLoading = !hasFetchedExercises && (status === 'idle' || status === 'loading');
-  useEffect(() => {
-    if (status === 'idle') {
-      dispatch(fetchExercises(userID));
+const ExerciseLogList = ({ userID, title = "Today's Exercises", onAddExercise }) => {
+  const {
+    data: exercises = [],
+    isLoading,
+    isFetching,
+    error,
+  } = useGetLegacyExercisesQuery(userID, { skip: !userID });
+  const [deleteLegacyExercise] = useDeleteLegacyExerciseMutation();
+  const [actionError, setActionError] = useState('');
+  const handleDelete = async (exerciseId) => {
+    setActionError('');
+    try {
+      await deleteLegacyExercise({ userId: userID, exerciseId }).unwrap();
+    } catch (requestError) {
+      setActionError(requestError.data?.error || 'Unable to delete this exercise.');
     }
-  }, [userID, status, dispatch]);
-
-  useEffect(() => {
-    // Fetch exercises whenever the userID changes to ensure the correct data is shown
-    dispatch(fetchExercises(userID));
-  }, [userID, dispatch]);
-
-  const handleDelete = (exerciseId) => {
-    dispatch(deleteExercise(userID, exerciseId));
   };
 
   return (
@@ -91,20 +85,27 @@ const ExercisesList = ({ userID, title = "Today's Exercises", onAddExercise }) =
           },
         }}
       >
-        {isLoading ? (
-          <ExerciseTable loading />
-        ) : status === 'failed' && !hasFetchedExercises ? (
+        {actionError && (
+          <Typography role="alert" color="error.main" variant="body2" sx={{ mb: 1 }}>
+            {actionError}
+          </Typography>
+        )}
+        {isFetching && !isLoading && (
+          <Skeleton animation="wave" variant="rounded" height={4} sx={{ mb: 1 }} />
+        )}
+        {error && exercises.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography color="error.main">Error fetching exercises.</Typography>
           </Box>
         ) : (
           <Fade in timeout={500}>
-          <Box>
-            <ExerciseTable
-              exercises={exercises}
-              handleDelete={handleDelete}
-            />
-          </Box>
+            <Box>
+              <ExerciseTable
+                exercises={exercises}
+                handleDelete={handleDelete}
+                loading={isLoading}
+              />
+            </Box>
           </Fade>
         )}
       </Box>
@@ -112,4 +113,4 @@ const ExercisesList = ({ userID, title = "Today's Exercises", onAddExercise }) =
   );
 };
 
-export default ExercisesList;
+export default ExerciseLogList;
